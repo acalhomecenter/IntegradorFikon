@@ -1,0 +1,14 @@
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeveForm\bin\Debug\IntegradorMoskitForm.exe.config
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeveForm\bin\Debug\IntegradorMoskitForm.exe.manifest
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeveForm\bin\Debug\IntegradorMoskitForm.application
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeveForm\bin\Debug\IntegradorMoskitForm.exe
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeveForm\bin\Debug\IntegradorMoskitForm.pdb
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeveForm\obj\Debug\IntegradorPegueLeveForm.csprojAssemblyReference.cache
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeveForm\obj\Debug\IntegradorMoskitForm.Form1.resources
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeveForm\obj\Debug\IntegradorMoskitForm.Properties.Resources.resources
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeveForm\obj\Debug\IntegradorPegueLeveForm.csproj.GenerateResource.cache
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeveForm\obj\Debug\IntegradorPegueLeveForm.csproj.CoreCompileInputs.cache
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeveForm\obj\Debug\IntegradorMoskitForm.exe.manifest
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeveForm\obj\Debug\IntegradorMoskitForm.application
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeveForm\obj\Debug\IntegradorMoskitForm.exe
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeveForm\obj\Debug\IntegradorMoskitForm.pdb

@@ -1,0 +1,16 @@
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\bin\Release\IntegradorPegueLeve.exe.config
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\bin\Release\IntegradorPegueLeve.exe.manifest
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\bin\Release\IntegradorPegueLeve.application
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\bin\Release\IntegradorPegueLeve.exe
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\bin\Release\IntegradorPegueLeve.pdb
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\bin\Release\Newtonsoft.Json.dll
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\bin\Release\Newtonsoft.Json.xml
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\obj\Release\IntegradorPegueLeve.IntegradorService.resources
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\obj\Release\IntegradorPegueLeve.ProjectInstaller.resources
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\obj\Release\IntegradorPegueLeve.csproj.GenerateResource.cache
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\obj\Release\IntegradorPegueLeve.TrustInfo.xml
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\obj\Release\IntegradorPegueLeve.exe.manifest
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\obj\Release\IntegradorPegueLeve.application
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\obj\Release\IntegradorPegueLeve.csproj.CopyComplete
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\obj\Release\IntegradorPegueLeve.exe
+C:\Api\IntegradorPegueLeve\IntegradorPegueLeve\obj\Release\IntegradorPegueLeve.pdb

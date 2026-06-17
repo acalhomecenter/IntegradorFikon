@@ -1,0 +1,17 @@
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\bin\Debug\IntegradorFikon.exe.config
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\bin\Debug\IntegradorFikon.exe.manifest
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\bin\Debug\IntegradorFikon.application
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\bin\Debug\IntegradorFikon.exe
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\bin\Debug\IntegradorFikon.pdb
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\bin\Debug\Newtonsoft.Json.dll
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\bin\Debug\Newtonsoft.Json.xml
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.IntegradorService.resources
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.ProjectInstaller.resources
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.csproj.GenerateResource.cache
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.csproj.CoreCompileInputs.cache
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.TrustInfo.xml
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.exe.manifest
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.application
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.csproj.CopyComplete
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.exe
+C:\ApiGemco\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.pdb
