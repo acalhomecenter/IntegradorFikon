@@ -65,6 +65,7 @@ namespace IntegradorFikon.Models.Produtos
 
                             produto.codigos = GetCodigos(produto.codigo);
                             produto.fornecedores = GetFornecedores(produto.codigo);
+                            produto.fatores = GetFatores(produto.codigo);
 
                             ListProdutos.Add(produto);
                         }
@@ -141,6 +142,7 @@ namespace IntegradorFikon.Models.Produtos
 
                             produto.codigos = GetCodigos(produto.codigo);
                             produto.fornecedores = GetFornecedores(produto.codigo);
+                            produto.fatores = GetFatores(produto.codigo);
 
                             ListProdutos.Add(produto);
                         }
@@ -192,7 +194,7 @@ namespace IntegradorFikon.Models.Produtos
                             {
                                 codigo = reader["codigo"] == DBNull.Value ? string.Empty : reader["codigo"].ToString(),
                                 tipo = reader["Classificacao"] == DBNull.Value ? string.Empty : reader["Classificacao"].ToString(),
-                                
+                                fornecedor = reader["fornecedor"] == DBNull.Value ? string.Empty : reader["fornecedor"].ToString(),
 
                             };
 
@@ -278,6 +280,61 @@ namespace IntegradorFikon.Models.Produtos
             }
         }
 
+
+        public List<Fator> GetFatores(string recurso)
+        {
+
+            List<Fator> ListFatores = new List<Fator>();
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(this.ConnectionString))
+                {
+                    connection.Open();
+
+                    using (SqlCommand command = new SqlCommand())
+                    {
+                        command.Connection = connection;
+
+                        command.CommandText = "exec [SP_FIKON_CONSULTA_UNIDADES]  " + recurso;
+
+                        SqlDataReader reader = command.ExecuteReader();
+
+                        while (reader.Read())
+                        {
+
+                            Fator fator = new Fator()
+                            {
+                                unidade = reader["unidade"] == DBNull.Value ? string.Empty : reader["unidade"].ToString(),
+                                principal = reader["principal"] == DBNull.Value ? string.Empty : reader["principal"].ToString(),
+                                valor = reader["valor"] == DBNull.Value ? string.Empty : reader["valor"].ToString(),
+                                
+
+
+
+                            };
+
+                            ListFatores.Add(fator);
+                        }
+
+
+                    }
+
+
+                    connection.Close();
+
+                }
+
+
+                return ListFatores;
+            }
+
+            catch (Exception ex)
+
+            {
+                return null;
+            }
+        }
 
     }
 }

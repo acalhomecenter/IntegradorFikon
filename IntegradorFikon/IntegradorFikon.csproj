@@ -145,7 +145,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Models\Cliente\" />
-    <Folder Include="Models\Fornecedo\" />
+    <Folder Include="Models\Fornecedor\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

@@ -26,12 +26,14 @@ namespace IntegradorFikon.Models.Produtos
         public string descricaogenerica { get; set; }
         public List<Codigo> codigos { get; set; }
         public List<Fornecedor> fornecedores { get; set; }
+        public List<Fator> fatores { get; set; }
     }
 
     public class Codigo
     {
         public string tipo { get; set; }
         public object codigo { get; set; }
+        public string fornecedor { get; set; }
     }
 
     public class Fornecedor
@@ -44,6 +46,15 @@ namespace IntegradorFikon.Models.Produtos
         public string economico { get; set; }
         public string qtdevolcompra { get; set; }
         public string comprador { get; set; }
+
+    }
+
+    public class Fator
+    {
+        public string unidade { get; set; }
+        public string valor { get; set; }
+        public string principal { get; set; }
+      
 
     }
 
