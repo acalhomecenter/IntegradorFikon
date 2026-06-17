@@ -5,3 +5,10 @@ C:\ApiGemco\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.cs
 C:\ApiGemco\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.csproj.CoreCompileInputs.cache
 C:\ApiGemco\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.exe
 C:\ApiGemco\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.pdb
+C:\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.csprojAssemblyReference.cache
+C:\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.Form1.resources
+C:\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.Properties.Resources.resources
+C:\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.csproj.GenerateResource.cache
+C:\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.csproj.CoreCompileInputs.cache
+C:\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.exe
+C:\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.pdb
