@@ -90,8 +90,10 @@ namespace IntegradorFikon.Models.Fikon
 
                 if (response.StatusCode.ToString() == "OK")
                 {
+                    string res = await response.Content.ReadAsStringAsync();
+                    JObject json = JObject.Parse(res);
 
-                    executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='R', DTINTEGRACAO=getdate() WHERE status='P' and codprod=" + produtos[i].codprod, ConnectionString);
+                    executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='R', DTINTEGRACAO=getdate() , retorno = " + "'" + json.GetValue("dados").ToString().Replace("'", "") + "'" + "WHERE status='P' and tipo='I' and codprod=" + produtos[i].codprod, ConnectionString);
 
 
                 }
@@ -101,7 +103,7 @@ namespace IntegradorFikon.Models.Fikon
                     string res = await response.Content.ReadAsStringAsync();
                     JObject json = JObject.Parse(res);
 
-                    executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='E', DTINTEGRACAO=getdate() WHERE status='P' and codprod=" + produtos[i].codprod, ConnectionString);
+                    executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='E', DTINTEGRACAO=getdate() WHERE status='P' and tipo='I' and codprod=" + produtos[i].codprod, ConnectionString);
 
                     executaQuery("INSERT INTO FIKON_LOG_INTEGRADOR(ERRO,MODULO,CODPROD,DTERRO,BODY) VALUES(" +
                                                "'" + json.GetValue("message").ToString().Replace("'", "") + "'," +
@@ -143,8 +145,10 @@ namespace IntegradorFikon.Models.Fikon
 
                 if (response.StatusCode.ToString() == "OK")
                 {
+                    string res = await response.Content.ReadAsStringAsync();
+                    JObject json = JObject.Parse(res);
 
-                    executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='R', DTINTEGRACAO=getdate() WHERE status='P' and codprod=" + produtos[i].codprod, ConnectionString);
+                    executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='R', DTINTEGRACAO=getdate(), retorno = " + "'" + json.GetValue("dados").ToString().Replace("'", "") + "'" + " WHERE status='P' and tipo='A' and codprod=" + produtos[i].codprod, ConnectionString);
 
 
                 }
@@ -154,7 +158,7 @@ namespace IntegradorFikon.Models.Fikon
                     string res = await response.Content.ReadAsStringAsync();
                     JObject json = JObject.Parse(res);
 
-                    executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='E', DTINTEGRACAO=getdate() WHERE status='P' and codprod=" + produtos[i].codprod, ConnectionString);
+                    executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='E', DTINTEGRACAO=getdate() WHERE status='P' and tipo='A' and codprod=" + produtos[i].codprod, ConnectionString);
 
                     executaQuery("INSERT INTO FIKON_LOG_INTEGRADOR(ERRO,MODULO,CODPROD,DTERRO,BODY) VALUES(" +
                                                "'" + json.GetValue("message").ToString().Replace("'", "") + "'," +
