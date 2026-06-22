@@ -108,6 +108,9 @@
     </Compile>
     <Compile Include="Models\Fikon\FikonRepositorio.cs" />
     <Compile Include="Models\Fikon\IFikonRepositorio.cs" />
+    <Compile Include="Models\Fornecedor\Fornecedor.cs" />
+    <Compile Include="Models\Fornecedor\FornecedorRepositorio.cs" />
+    <Compile Include="Models\Fornecedor\IFornecedorRepositorio.cs" />
     <Compile Include="Models\Produto\IProdutoRepositorio.cs" />
     <Compile Include="Models\Produto\Produto.cs" />
     <Compile Include="Models\Produto\ProdutoRepositorio.cs" />
@@ -145,7 +148,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Models\Cliente\" />
-    <Folder Include="Models\Fornecedor\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

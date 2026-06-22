@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using IntegradorFikon.Models.Produtos;
 using IntegradorFikon.Models.Fikon;
+using IntegradorFikon.Models.Fornecedor;
 
 namespace IntegradorFikon
 {
@@ -19,6 +20,7 @@ namespace IntegradorFikon
        //private EventLog eventLog1;
         private int eventId = 1;
         static readonly IProdutoRepositorio repositorio = new ProdutoRepositorio();
+        static readonly IFornecedorRepositorio repositorioFornecedor = new FornecedorRepositorio();
         static readonly IFikonRepositorio repositorioFikon = new FikonRepositorio();
 
 
@@ -127,10 +129,16 @@ namespace IntegradorFikon
 
 
 
-           repositorioFikon.insereProdutoFikon(repositorio.GetItens());
+
+            repositorioFikon.insereFornecedorFikon(repositorioFornecedor.GetFornecedores());
 
 
-        
+
+            repositorioFikon.insereProdutoFikon(repositorio.GetItens());
+
+
+
+
             repositorioFikon.atualizaProdutoFikon(repositorio.GetItensUpdate());
 
 

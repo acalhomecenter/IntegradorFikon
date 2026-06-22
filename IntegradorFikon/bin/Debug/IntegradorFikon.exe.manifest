@@ -43,14 +43,14 @@
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="IntegradorFikon.exe" size="184832">
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="IntegradorFikon.exe" size="193536">
       <assemblyIdentity name="IntegradorFikon" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>7B/V+pIt6InwEVfBRqIFE4jTTOcR1kRXuItzOz/cX6I=</dsig:DigestValue>
+        <dsig:DigestValue>5zNsoFEyvVp5ITJ0eZRWB+9uxG8CaiRIl2Jzn8J07cA=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>

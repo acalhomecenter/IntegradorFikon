@@ -32,4 +32,3 @@ C:\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.application
 C:\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.csproj.CopyComplete
 C:\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.exe
 C:\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.pdb
-C:\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.csprojAssemblyReference.cache
