@@ -12,5 +12,6 @@ namespace IntegradorFikon.Models.Fikon
         void insereProdutoFikon(IEnumerable<Produto> prods);
         void atualizaProdutoFikon(IEnumerable<Produto> prods);
         void insereFornecedorFikon(IEnumerable<IntegradorFikon.Models.Fornecedor.Fornecedor> forne);
+        void inserePrecoFikon(IEnumerable<IntegradorFikon.Models.Preco.Preco> preco);
     }
 }

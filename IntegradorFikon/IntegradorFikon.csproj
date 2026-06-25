@@ -111,6 +111,9 @@
     <Compile Include="Models\Fornecedor\Fornecedor.cs" />
     <Compile Include="Models\Fornecedor\FornecedorRepositorio.cs" />
     <Compile Include="Models\Fornecedor\IFornecedorRepositorio.cs" />
+    <Compile Include="Models\Preco\IPrecoRepositorio.cs" />
+    <Compile Include="Models\Preco\Preco.cs" />
+    <Compile Include="Models\Preco\PrecoRepositorio.cs" />
     <Compile Include="Models\Produto\IProdutoRepositorio.cs" />
     <Compile Include="Models\Produto\Produto.cs" />
     <Compile Include="Models\Produto\ProdutoRepositorio.cs" />

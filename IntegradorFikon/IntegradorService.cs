@@ -12,6 +12,7 @@ using System.Windows.Forms;
 using IntegradorFikon.Models.Produtos;
 using IntegradorFikon.Models.Fikon;
 using IntegradorFikon.Models.Fornecedor;
+using IntegradorFikon.Models.Preco;
 
 namespace IntegradorFikon
 {
@@ -21,6 +22,7 @@ namespace IntegradorFikon
         private int eventId = 1;
         static readonly IProdutoRepositorio repositorio = new ProdutoRepositorio();
         static readonly IFornecedorRepositorio repositorioFornecedor = new FornecedorRepositorio();
+        static readonly IPrecoRepositorio repositorioPreco = new PrecoRepositorio();
         static readonly IFikonRepositorio repositorioFikon = new FikonRepositorio();
 
 
@@ -72,11 +74,15 @@ namespace IntegradorFikon
 
             // Set up a timer that triggers every minute.
             System.Timers.Timer timer = new System.Timers.Timer();
-            timer.Interval = 60000; // 1 minutos
+            timer.Interval = 180000; // 1 minutos
             //timer.Interval = 120000; // 2 minutos
             //timer.Interval = 300000; // 5 minutos
             timer.Elapsed += new System.Timers.ElapsedEventHandler(this.OnTimer);
             timer.Start();
+
+            System.Timers.Timer timerPreco = new System.Timers.Timer(300000); // 5 minutos em milissegundos
+            timerPreco.Elapsed += OnTimerPreco;
+            timerPreco.Start();
 
             // Update the service state to Start Pending.
             ServiceStatus serviceStatus = new ServiceStatus();
@@ -136,13 +142,34 @@ namespace IntegradorFikon
 
             repositorioFikon.insereProdutoFikon(repositorio.GetItens());
 
+           
 
+
+        }
+
+
+        public void OnTimerPreco(object sender, System.Timers.ElapsedEventArgs args)
+        {
+            // TODO: Insert monitoring activities here.
+            //eventLog1.WriteEntry("Monitorando Integrador Moskit", EventLogEntryType.Information, eventId++);
+            eventLog1.WriteEntry("Monitorando Integrador Fikon", EventLogEntryType.Information);
+            //eventLog1.WriteEntry("Controlando o event id: " + eventId.ToString(), EventLogEntryType.Information, eventId++);
+            //eventLog1.WriteEntry("Orcamento: " +  repositorio.GetDadosOrcamento().ToString(), EventLogEntryType.Information, eventId++);
+
+
+                                
+
+
+            repositorioFikon.inserePrecoFikon(repositorioPreco.GetPrecosUpdate());
 
 
             repositorioFikon.atualizaProdutoFikon(repositorio.GetItensUpdate());
 
 
+
         }
+
+
 
         private void eventLog1_EntryWritten(object sender, EntryWrittenEventArgs e)
         {

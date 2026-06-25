@@ -82,7 +82,7 @@ namespace IntegradorFikon.Models.Fikon
 
             for (int i = 0; i < produtos.Count(); i++)
             {
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(5000);
 
                 jcontent = JsonConvert.SerializeObject(produtos[i]);
 
@@ -137,7 +137,7 @@ namespace IntegradorFikon.Models.Fikon
 
             for (int i = 0; i < produtos.Count(); i++)
             {
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(5000);
 
                 jcontent = JsonConvert.SerializeObject(produtos[i]);
 
@@ -192,7 +192,7 @@ namespace IntegradorFikon.Models.Fikon
 
             for (int i = 0; i < fornecedores.Count(); i++)
             {
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(5000);
 
                 jcontent = JsonConvert.SerializeObject(fornecedores[i]);
 
@@ -220,6 +220,60 @@ namespace IntegradorFikon.Models.Fikon
                                                "'" + json.GetValue("message").ToString().Replace("'", "") + "'," +
                                                "'FORNECEDOR' ," +
                                                fornecedores[i].codigo + "," +
+                                               "getdate() ," +
+                                               "'" + jcontent.ToString() + "'" +
+                                               ")", ConnectionString);
+                }
+
+
+
+
+            }
+        }
+
+        public async void inserePrecoFikon(IEnumerable<IntegradorFikon.Models.Preco.Preco> preco)
+        {
+            client = new HttpClient();
+
+            string url = urlBase + "/api-acal/api/v1/preco/cadastrar";
+
+            var precos = preco.ToArray();
+
+            if (!client.DefaultRequestHeaders.Contains("Authorization"))
+            {
+                client.DefaultRequestHeaders.Add("Authorization", chaveApi);
+            }
+
+            for (int i = 0; i < precos.Count(); i++)
+            {
+                System.Threading.Thread.Sleep(5000);
+
+                jcontent = JsonConvert.SerializeObject(precos[i]);
+
+                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
+                HttpResponseMessage response = await client.PostAsync(url, new StringContent(jcontent, Encoding.UTF8, "application/json")).ConfigureAwait(false);
+
+                if (response.StatusCode.ToString() == "OK")
+                {
+                    string res = await response.Content.ReadAsStringAsync();
+                    JObject json = JObject.Parse(res);
+
+                    executaQuery("UPDATE FIKON_CAD_PRECO WITH (READCOMMITTED) SET STATUS='R', DTINTEGRACAO=getdate() , retorno = " + "'" + json.GetValue("dados").ToString().Replace("'", "") + "'" + "WHERE status='P' and tipo='A' and coditprod=" + precos[i].recursoChave.Substring(0, precos[i].recursoChave.Length - 1), ConnectionString);
+
+
+                }
+                else
+                {
+
+                    string res = await response.Content.ReadAsStringAsync();
+                    JObject json = JObject.Parse(res);
+
+                    executaQuery("UPDATE FIKON_CAD_PRECO WITH (READCOMMITTED) SET STATUS='E', DTINTEGRACAO=getdate() WHERE status='P' and tipo='A' and coditprod=" + precos[i].recursoChave.Substring(0, precos[i].recursoChave.Length - 1), ConnectionString);
+
+                    executaQuery("INSERT INTO FIKON_LOG_INTEGRADOR(ERRO,MODULO,CODPROD,DTERRO,BODY) VALUES(" +
+                                               "'" + json.GetValue("message").ToString().Replace("'", "") + "'," +
+                                               "'PRECO' ," +
+                                               precos[i].recursoChave.Substring(0, precos[i].recursoChave.Length - 1) + "," +
                                                "getdate() ," +
                                                "'" + jcontent.ToString() + "'" +
                                                ")", ConnectionString);
