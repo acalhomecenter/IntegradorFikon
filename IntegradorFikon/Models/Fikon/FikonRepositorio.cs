@@ -20,6 +20,10 @@ namespace IntegradorFikon.Models.Fikon
         private static string chaveApi = new ApiFikon().ChaveApi;
         private HttpClient client;
         string jcontent = "";
+        string jcontentAtualiza = "";
+        string jcontentPreco = "";
+        string jcontentForne = "";
+
 
 
         public List<List<String>> executaQuery(string query, string conexao)
@@ -139,10 +143,10 @@ namespace IntegradorFikon.Models.Fikon
             {
                 System.Threading.Thread.Sleep(5000);
 
-                jcontent = JsonConvert.SerializeObject(produtos[i]);
+                jcontentAtualiza = JsonConvert.SerializeObject(produtos[i]);
 
                 HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Put, url);
-                HttpResponseMessage response = await client.PutAsync(url, new StringContent(jcontent, Encoding.UTF8, "application/json")).ConfigureAwait(false);
+                HttpResponseMessage response = await client.PutAsync(url, new StringContent(jcontentAtualiza, Encoding.UTF8, "application/json")).ConfigureAwait(false);
 
                 if (response.StatusCode.ToString() == "OK")
                 {
@@ -166,7 +170,7 @@ namespace IntegradorFikon.Models.Fikon
                                                "'PRODUTO UPDATE' ," +
                                                produtos[i].codprod + "," +
                                                "getdate() ," +
-                                               "'" + jcontent.ToString() + "'" +
+                                               "'" + jcontentAtualiza.ToString() + "'" +
                                                ")", ConnectionString);
                 }
 
@@ -194,10 +198,10 @@ namespace IntegradorFikon.Models.Fikon
             {
                 System.Threading.Thread.Sleep(5000);
 
-                jcontent = JsonConvert.SerializeObject(fornecedores[i]);
+                jcontentForne = JsonConvert.SerializeObject(fornecedores[i]);
 
                 HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
-                HttpResponseMessage response = await client.PostAsync(url, new StringContent(jcontent, Encoding.UTF8, "application/json")).ConfigureAwait(false);
+                HttpResponseMessage response = await client.PostAsync(url, new StringContent(jcontentForne, Encoding.UTF8, "application/json")).ConfigureAwait(false);
 
                 if (response.StatusCode.ToString() == "OK")
                 {
@@ -221,7 +225,7 @@ namespace IntegradorFikon.Models.Fikon
                                                "'FORNECEDOR' ," +
                                                fornecedores[i].codigo + "," +
                                                "getdate() ," +
-                                               "'" + jcontent.ToString() + "'" +
+                                               "'" + jcontentForne.ToString() + "'" +
                                                ")", ConnectionString);
                 }
 
@@ -248,10 +252,10 @@ namespace IntegradorFikon.Models.Fikon
             {
                 System.Threading.Thread.Sleep(5000);
 
-                jcontent = JsonConvert.SerializeObject(precos[i]);
+                jcontentPreco = JsonConvert.SerializeObject(precos[i]);
 
                 HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
-                HttpResponseMessage response = await client.PostAsync(url, new StringContent(jcontent, Encoding.UTF8, "application/json")).ConfigureAwait(false);
+                HttpResponseMessage response = await client.PostAsync(url, new StringContent(jcontentPreco, Encoding.UTF8, "application/json")).ConfigureAwait(false);
 
                 if (response.StatusCode.ToString() == "OK")
                 {
@@ -275,7 +279,7 @@ namespace IntegradorFikon.Models.Fikon
                                                "'PRECO' ," +
                                                precos[i].recursoChave.Substring(0, precos[i].recursoChave.Length - 1) + "," +
                                                "getdate() ," +
-                                               "'" + jcontent.ToString() + "'" +
+                                               "'" + jcontentPreco.ToString() + "'" +
                                                ")", ConnectionString);
                 }
 
