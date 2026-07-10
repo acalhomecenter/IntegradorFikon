@@ -106,6 +106,9 @@
     <Compile Include="IntegradorService.Designer.cs">
       <DependentUpon>IntegradorService.cs</DependentUpon>
     </Compile>
+    <Compile Include="Models\Cliente\Cliente.cs" />
+    <Compile Include="Models\Cliente\ClienteRepositorio.cs" />
+    <Compile Include="Models\Cliente\IClienteRepositorio.cs" />
     <Compile Include="Models\Fikon\FikonRepositorio.cs" />
     <Compile Include="Models\Fikon\IFikonRepositorio.cs" />
     <Compile Include="Models\Fornecedor\Fornecedor.cs" />
@@ -149,9 +152,7 @@
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Models\Cliente\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>

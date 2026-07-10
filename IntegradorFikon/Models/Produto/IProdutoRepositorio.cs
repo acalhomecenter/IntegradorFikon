@@ -10,5 +10,6 @@ namespace IntegradorFikon.Models.Produtos
     {
         IEnumerable<Produto> GetItens();
         IEnumerable<Produto> GetItensUpdate();
+        IEnumerable<Produto> GetItensTodos();
     }
 }

@@ -12,6 +12,82 @@ namespace IntegradorFikon.Models.Produtos
     {
         private string ConnectionString = new ConGemco().ConString;
 
+        public IEnumerable<Produto> GetItensTodos()
+        {
+
+            List<Produto> ListProdutos = new List<Produto>();
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(this.ConnectionString))
+                {
+                    connection.Open();
+
+                    using (SqlCommand command = new SqlCommand())
+                    {
+                        command.Connection = connection;
+
+                        command.CommandText = "exec [SP_FIKON_ALTER_PRODUTOS_TODOS] ";
+
+                        SqlDataReader reader = command.ExecuteReader();
+
+                        while (reader.Read())
+                        {
+
+                            Produto produto = new Produto()
+                            {
+                                codigo = reader["Codigo"] == DBNull.Value ? string.Empty : reader["Codigo"].ToString(),
+                                nome = reader["Nome"] == DBNull.Value ? string.Empty : reader["Nome"].ToString(),
+                                classe = reader["Classe"] == DBNull.Value ? string.Empty : reader["Classe"].ToString(),
+                                clfiscal = reader["ClFiscal"] == DBNull.Value ? string.Empty : reader["ClFiscal"].ToString(),
+                                unidmedida = reader["UnidMedida"] == DBNull.Value ? string.Empty : reader["UnidMedida"].ToString(),
+                                procedenci = reader["Procedencia"] == DBNull.Value ? string.Empty : reader["Procedencia"].ToString(),
+                                fabricante = reader["Fabricante"] == DBNull.Value ? string.Empty : reader["Fabricante"].ToString(),
+                                referenciaFabrica = reader["RefFabrica"] == DBNull.Value ? string.Empty : reader["RefFabrica"].ToString(),
+                                marca = reader["Marca"] == DBNull.Value ? string.Empty : reader["Marca"].ToString(),
+                                modelo = reader["Modelo"] == DBNull.Value ? string.Empty : reader["Modelo"].ToString(),
+                                cor = reader["Cor"] == DBNull.Value ? string.Empty : reader["Cor"].ToString(),
+                                tamanho = reader["Tamanho"] == DBNull.Value ? string.Empty : reader["Tamanho"].ToString(),
+                                altura = reader["altura"] == DBNull.Value ? string.Empty : reader["altura"].ToString(),
+                                largura = reader["largura"] == DBNull.Value ? string.Empty : reader["largura"].ToString(),
+                                comprimento = reader["comprimento"] == DBNull.Value ? string.Empty : reader["comprimento"].ToString(),
+                                pesbruunid = reader["pesbruunid"] == DBNull.Value ? string.Empty : reader["pesbruunid"].ToString(),
+                                pesliqunid = reader["pesliqunid"] == DBNull.Value ? string.Empty : reader["pesliqunid"].ToString(),
+                                //inativador = reader["Inativador"] == DBNull.Value ? string.Empty : reader["Inativador"].ToString(),
+                                //material = reader["Material"] == DBNull.Value ? string.Empty : reader["Material"].ToString(),
+                                referenciaPrincipal = reader["RefPrincipal"] == DBNull.Value ? string.Empty : reader["RefPrincipal"].ToString(),
+                                codprod = reader["codprod"] == DBNull.Value ? string.Empty : reader["codprod"].ToString(),
+                                descricaogenerica = reader["DescricaoGenerica"] == DBNull.Value ? string.Empty : reader["DescricaoGenerica"].ToString(),
+                                //Cest = reader["Cest"] == DBNull.Value ? string.Empty : reader["Cest"].ToString(),
+
+                            };
+
+                            produto.codigos = GetCodigos(produto.codigo);
+                            produto.fornecedores = GetFornecedores(produto.codigo);
+                            produto.fatores = GetFatores(produto.codigo);
+
+                            ListProdutos.Add(produto);
+                        }
+
+
+                    }
+
+
+                    connection.Close();
+
+                }
+
+
+                return ListProdutos;
+            }
+
+            catch (Exception ex)
+
+            {
+                return null;
+            }
+        }
+
 
         public IEnumerable<Produto> GetItens()
         {
@@ -49,13 +125,11 @@ namespace IntegradorFikon.Models.Produtos
                                 modelo = reader["Modelo"] == DBNull.Value ? string.Empty : reader["Modelo"].ToString(),
                                 cor = reader["Cor"] == DBNull.Value ? string.Empty : reader["Cor"].ToString(),
                                 tamanho = reader["Tamanho"] == DBNull.Value ? string.Empty : reader["Tamanho"].ToString(),
-                                //qdeporvol = reader["QdePorvol"] == DBNull.Value ? string.Empty : reader["QdePorvol"].ToString(),
-                                //qdeporvolcompra = reader["QdePorvolCompra"] == DBNull.Value ? string.Empty : reader["QdePorvolCompra"].ToString(),
-                                //foradeLinha = reader["ForaDeLinha"] == DBNull.Value ? string.Empty : reader["ForaDeLinha"].ToString(),
-                                //foradelinhainfo = reader["ForaDeLinha"] == DBNull.Value ? string.Empty : reader["ForaDeLinha"].ToString(),
-                                //inativo = reader["Inativo"] == DBNull.Value ? string.Empty : reader["Inativo"].ToString(),
-                                //inativador = reader["Inativador"] == DBNull.Value ? string.Empty : reader["Inativador"].ToString(),
-                                //material = reader["Material"] == DBNull.Value ? string.Empty : reader["Material"].ToString(),
+                                altura = reader["altura"] == DBNull.Value ? string.Empty : reader["altura"].ToString(),
+                                largura = reader["largura"] == DBNull.Value ? string.Empty : reader["largura"].ToString(),
+                                comprimento = reader["comprimento"] == DBNull.Value ? string.Empty : reader["comprimento"].ToString(),
+                                pesbruunid = reader["pesbruunid"] == DBNull.Value ? string.Empty : reader["pesbruunid"].ToString(),
+                                pesliqunid = reader["pesliqunid"] == DBNull.Value ? string.Empty : reader["pesliqunid"].ToString(),
                                 referenciaPrincipal = reader["RefPrincipal"] == DBNull.Value ? string.Empty : reader["RefPrincipal"].ToString(),
                                 codprod = reader["codprod"] == DBNull.Value ? string.Empty : reader["codprod"].ToString(),
                                 descricaogenerica = reader["DescricaoGenerica"] == DBNull.Value ? string.Empty : reader["DescricaoGenerica"].ToString(),
@@ -126,13 +200,11 @@ namespace IntegradorFikon.Models.Produtos
                                 modelo = reader["Modelo"] == DBNull.Value ? string.Empty : reader["Modelo"].ToString(),
                                 cor = reader["Cor"] == DBNull.Value ? string.Empty : reader["Cor"].ToString(),
                                 tamanho = reader["Tamanho"] == DBNull.Value ? string.Empty : reader["Tamanho"].ToString(),
-                                //qdeporvol = reader["QdePorvol"] == DBNull.Value ? string.Empty : reader["QdePorvol"].ToString(),
-                                //qdeporvolcompra = reader["QdePorvolCompra"] == DBNull.Value ? string.Empty : reader["QdePorvolCompra"].ToString(),
-                                //foradeLinha = reader["ForaDeLinha"] == DBNull.Value ? string.Empty : reader["ForaDeLinha"].ToString(),
-                                //foradelinhainfo = reader["ForaDeLinha"] == DBNull.Value ? string.Empty : reader["ForaDeLinha"].ToString(),
-                                //inativo = reader["Inativo"] == DBNull.Value ? string.Empty : reader["Inativo"].ToString(),
-                                //inativador = reader["Inativador"] == DBNull.Value ? string.Empty : reader["Inativador"].ToString(),
-                                //material = reader["Material"] == DBNull.Value ? string.Empty : reader["Material"].ToString(),
+                                altura = reader["altura"] == DBNull.Value ? string.Empty : reader["altura"].ToString(),
+                                largura = reader["largura"] == DBNull.Value ? string.Empty : reader["largura"].ToString(),
+                                comprimento = reader["comprimento"] == DBNull.Value ? string.Empty : reader["comprimento"].ToString(),
+                                pesbruunid = reader["pesbruunid"] == DBNull.Value ? string.Empty : reader["pesbruunid"].ToString(),
+                                pesliqunid = reader["pesliqunid"] == DBNull.Value ? string.Empty : reader["pesliqunid"].ToString(),
                                 referenciaPrincipal = reader["RefPrincipal"] == DBNull.Value ? string.Empty : reader["RefPrincipal"].ToString(),
                                 codprod = reader["codprod"] == DBNull.Value ? string.Empty : reader["codprod"].ToString(),
                                 descricaogenerica = reader["DescricaoGenerica"] == DBNull.Value ? string.Empty : reader["DescricaoGenerica"].ToString(),

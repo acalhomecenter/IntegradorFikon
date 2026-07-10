@@ -13,6 +13,7 @@ using IntegradorFikon.Models.Produtos;
 using IntegradorFikon.Models.Fikon;
 using IntegradorFikon.Models.Fornecedor;
 using IntegradorFikon.Models.Preco;
+using IntegradorFikon.Models.Cliente;
 
 namespace IntegradorFikon
 {
@@ -21,6 +22,7 @@ namespace IntegradorFikon
        //private EventLog eventLog1;
         private int eventId = 1;
         static readonly IProdutoRepositorio repositorio = new ProdutoRepositorio();
+        static readonly IClienteRepositorio repositorioCliente = new ClienteRepositorio();
         static readonly IFornecedorRepositorio repositorioFornecedor = new FornecedorRepositorio();
         static readonly IPrecoRepositorio repositorioPreco = new PrecoRepositorio();
         static readonly IFikonRepositorio repositorioFikon = new FikonRepositorio();
@@ -74,7 +76,7 @@ namespace IntegradorFikon
 
             // Set up a timer that triggers every minute.
             System.Timers.Timer timer = new System.Timers.Timer();
-            timer.Interval = 180000; // 1 minutos
+            timer.Interval = 60000; // 1 minutos
             //timer.Interval = 120000; // 2 minutos
             //timer.Interval = 300000; // 5 minutos
             timer.Elapsed += new System.Timers.ElapsedEventHandler(this.OnTimer);
@@ -96,7 +98,12 @@ namespace IntegradorFikon
 
             eventLog1.WriteEntry("Serviço Iniciado");
 
-            
+
+            repositorioFikon.insereClientesFikonTodos(repositorioCliente.GetClientes());
+
+            //repositorioFikon.insereProdutoFikonTodos(repositorio.GetItensTodos());
+
+
         }
 
         protected override void OnPause()
@@ -135,6 +142,8 @@ namespace IntegradorFikon
 
 
 
+          
+
 
             repositorioFikon.insereFornecedorFikon(repositorioFornecedor.GetFornecedores());
 
@@ -142,7 +151,7 @@ namespace IntegradorFikon
 
             repositorioFikon.insereProdutoFikon(repositorio.GetItens());
 
-           
+
 
 
         }
@@ -157,7 +166,7 @@ namespace IntegradorFikon
             //eventLog1.WriteEntry("Orcamento: " +  repositorio.GetDadosOrcamento().ToString(), EventLogEntryType.Information, eventId++);
 
 
-                                
+
 
 
             repositorioFikon.inserePrecoFikon(repositorioPreco.GetPrecosUpdate());

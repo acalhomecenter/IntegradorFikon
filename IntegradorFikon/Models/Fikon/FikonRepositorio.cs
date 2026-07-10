@@ -70,6 +70,121 @@ namespace IntegradorFikon.Models.Fikon
             }
         }
 
+        public async void insereProdutoFikonTodos(IEnumerable<Produto> prods)
+        {
+            client = new HttpClient();
+
+            string url = urlBase + "/api-acal/api/v1/recurso/cadastrar";
+
+            var produtos = prods.ToArray();
+
+            if (!client.DefaultRequestHeaders.Contains("Authorization"))
+            {
+                client.DefaultRequestHeaders.Add("Authorization", chaveApi);
+            }
+
+            for (int i = 0; i < produtos.Count(); i++)
+            {
+                //System.Threading.Thread.Sleep(1000);
+
+                jcontent = JsonConvert.SerializeObject(produtos[i]);
+
+                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
+                HttpResponseMessage response = await client.PostAsync(url, new StringContent(jcontent, Encoding.UTF8, "application/json")).ConfigureAwait(false);
+
+                if (response.StatusCode.ToString() == "OK")
+                {
+                    //string res = await response.Content.ReadAsStringAsync();
+                    //JObject json = JObject.Parse(res);
+
+                    //executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='R', DTINTEGRACAO=getdate() , retorno = " + "'" + json.GetValue("dados").ToString().Replace("'", "") + "'" + "WHERE status='P' and tipo='I' and codprod=" + produtos[i].codprod, ConnectionString);
+
+                 
+                }
+
+            
+                else
+                {
+
+                    string res = await response.Content.ReadAsStringAsync();
+                    JObject json = JObject.Parse(res);
+
+                    //executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='E', DTINTEGRACAO=getdate() WHERE status='P' and tipo='I' and codprod=" + produtos[i].codprod, ConnectionString);
+
+                    executaQuery("INSERT INTO FIKON_LOG_INTEGRADOR(ERRO,MODULO,CODPROD,DTERRO,BODY) VALUES(" +
+                                               "'" + json.GetValue("message").ToString().Replace("'", "") + "'," +
+                                               "'PRODUTO_TODOS' ," +
+                                               produtos[i].codprod + "," +
+                                               "getdate() ," +
+                                               "'" + jcontent.ToString() + "'" +
+                                               ")", ConnectionString);
+                }
+
+
+
+
+            }
+        }
+
+
+        public async void insereClientesFikonTodos(List<Models.Cliente.Cliente> cliente)
+        {
+            client = new HttpClient();
+
+            string url = urlBase + "/api-acal/api/v1/cliente";
+
+            var clientes = cliente.ToArray();
+
+            if (!client.DefaultRequestHeaders.Contains("Authorization"))
+            {
+                client.DefaultRequestHeaders.Add("Authorization", chaveApi);
+            }
+
+            for (int i = 0; i < clientes.Count(); i++)
+            {
+                //System.Threading.Thread.Sleep(1000);
+
+                jcontent = JsonConvert.SerializeObject(clientes[i]);
+
+                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
+                HttpResponseMessage response = await client.PostAsync(url, new StringContent(jcontent, Encoding.UTF8, "application/json")).ConfigureAwait(false);
+
+                if (response.StatusCode.ToString() == "OK")
+                {
+                    //string res = await response.Content.ReadAsStringAsync();
+                    //JObject json = JObject.Parse(res);
+
+                    //executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='R', DTINTEGRACAO=getdate() , retorno = " + "'" + json.GetValue("dados").ToString().Replace("'", "") + "'" + "WHERE status='P' and tipo='I' and codprod=" + produtos[i].codprod, ConnectionString);
+
+
+                }
+
+
+                else
+                {
+
+                    string res = await response.Content.ReadAsStringAsync();
+                    JObject json = JObject.Parse(res);
+
+                    //executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='E', DTINTEGRACAO=getdate() WHERE status='P' and tipo='I' and codprod=" + produtos[i].codprod, ConnectionString);
+
+                    executaQuery("INSERT INTO FIKON_LOG_INTEGRADOR(ERRO,MODULO,CODPROD,DTERRO,BODY) VALUES(" +
+                                               "'" + json.GetValue("message").ToString().Replace("'", "") + "'," +
+                                               "'CLIENTE_TODOS' ," +
+                                               clientes[i].codigo + "," +
+                                               "getdate() ," +
+                                               "'" + jcontent.ToString() + "'" +
+                                               ")", ConnectionString);
+                }
+
+
+
+
+            }
+        }
+
+
+
 
         public async void insereProdutoFikon(IEnumerable<Produto> prods)
         {

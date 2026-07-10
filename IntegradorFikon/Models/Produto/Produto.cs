@@ -27,6 +27,11 @@ namespace IntegradorFikon.Models.Produtos
         public List<Codigo> codigos { get; set; }
         public List<Fornecedor> fornecedores { get; set; }
         public List<Fator> fatores { get; set; }
+        public string altura { get; set; }
+        public string largura { get; set; }
+        public string comprimento { get; set; }
+        public string pesbruunid { get; set; }
+        public string pesliqunid { get; set; }
     }
 
     public class Codigo
