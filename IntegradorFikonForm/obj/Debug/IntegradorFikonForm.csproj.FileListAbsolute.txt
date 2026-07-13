@@ -12,9 +12,3 @@ C:\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.csproj.Gene
 C:\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.csproj.CoreCompileInputs.cache
 C:\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.exe
 C:\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.pdb
-C:\Users\luan.costa\Desktop\franquias\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.csprojAssemblyReference.cache
-C:\Users\luan.costa\Desktop\franquias\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.Form1.resources
-C:\Users\luan.costa\Desktop\franquias\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.Properties.Resources.resources
-C:\Users\luan.costa\Desktop\franquias\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.csproj.GenerateResource.cache
-C:\Users\luan.costa\Desktop\franquias\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.exe
-C:\Users\luan.costa\Desktop\franquias\IntegradorFikon\IntegradorFikonForm\obj\Debug\IntegradorFikonForm.pdb

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -21,8 +21,6 @@ namespace IntegradorFikon
     {
        //private EventLog eventLog1;
         private int eventId = 1;
-        private System.Timers.Timer timerStatusPedidos;
-        private bool executandoConsultaStatusPedidos = false;
         static readonly IProdutoRepositorio repositorio = new ProdutoRepositorio();
         static readonly IClienteRepositorio repositorioCliente = new ClienteRepositorio();
         static readonly IFornecedorRepositorio repositorioFornecedor = new FornecedorRepositorio();
@@ -87,10 +85,6 @@ namespace IntegradorFikon
             System.Timers.Timer timerPreco = new System.Timers.Timer(300000); // 5 minutos em milissegundos
             timerPreco.Elapsed += OnTimerPreco;
             timerPreco.Start();
-
-            timerStatusPedidos = new System.Timers.Timer(5000);
-            timerStatusPedidos.Elapsed += OnTimerStatusPedidos;
-            timerStatusPedidos.Start();
 
             // Update the service state to Start Pending.
             ServiceStatus serviceStatus = new ServiceStatus();
@@ -182,28 +176,6 @@ namespace IntegradorFikon
 
 
 
-        }
-
-        public void OnTimerStatusPedidos(object sender, System.Timers.ElapsedEventArgs args)
-        {
-            if (executandoConsultaStatusPedidos)
-            {
-                return;
-            }
-
-            try
-            {
-                executandoConsultaStatusPedidos = true;
-                repositorioFikon.consultarStatusPedidosFikon().GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
-                eventLog1.WriteEntry("Erro ao consultar status de pedidos integrados na FIKON: " + ex.Message, EventLogEntryType.Error);
-            }
-            finally
-            {
-                executandoConsultaStatusPedidos = false;
-            }
         }
 
 
