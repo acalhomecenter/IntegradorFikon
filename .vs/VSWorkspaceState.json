@@ -1,6 +1,14 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\IntegradorFikon",
+    "\\IntegradorFikon\\obj",
+    "\\IntegradorFikon\\obj\\Debug",
+    "\\IntegradorFikon\\obj\\Release",
+    "\\SyndicationServiceLibrary1",
+    "\\SyndicationServiceLibrary1\\obj",
+    "\\SyndicationServiceLibrary1\\obj\\Debug",
+    "\\SyndicationServiceLibrary1\\obj\\Release"
   ],
   "PreviewInSolutionExplorer": false
 }
