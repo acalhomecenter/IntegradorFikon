@@ -10,8 +10,8 @@ namespace IntegradorFikon.Conexao
     {
         public ConGemco()
         {
-            ConString = "Data Source =sqlcs; User Id = sa; Password = sqlrollback; Initial Catalog = dbGemco";
-            //ConString = "Data Source =10.1.0.226; User Id = sa; Password = Underline5; Initial Catalog = dbGemco";
+            //ConString = "Data Source =sqlcs; User Id = sa; Password = sqlrollback; Initial Catalog = dbGemco";
+            ConString = "Data Source =10.1.5.226; User Id = sa; Password = Underline5; Initial Catalog = dbGemco";
         }
 
         public string ConString { get; set; }

@@ -6,11 +6,11 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Data;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using System.Data.SqlClient;
 
 namespace IntegradorFikon.Models.Fikon
 {
@@ -492,33 +492,43 @@ namespace IntegradorFikon.Models.Fikon
         {
             List<PedidoIntegradoMonitoramento> pedidos = new List<PedidoIntegradoMonitoramento>();
 
-            using (SqlConnection connection = new SqlConnection(this.ConnectionStringAplicativos))
+            using (SqlConnection connection = new SqlConnection(this.ConnectionString))
             {
+                try
+                {
+
+               
                 connection.Open();
 
-                using (SqlCommand command = new SqlCommand())
-                {
-                    command.Connection = connection;
-                    command.CommandText = @"
-                        SELECT [id], [pedido_gemco], [pedido_fikon], [STATUS]
-                          FROM [dbAplicativos].[dbo].[PEDIDOS_GEMCO_FIKON] WITH (NOLOCK)
-                         WHERE ISNULL([STATUS], '') <> 'LIBERADO CXA'
-                           AND ISNULL([pedido_fikon], '') <> ''";
-
-                    SqlDataReader reader = command.ExecuteReader();
-
-                    while (reader.Read())
+                    using (SqlCommand command = new SqlCommand())
                     {
-                        PedidoIntegradoMonitoramento pedido = new PedidoIntegradoMonitoramento()
-                        {
-                            Id = reader["id"] == DBNull.Value ? 0 : Convert.ToInt32(reader["id"]),
-                            PedidoGemco = reader["pedido_gemco"] == DBNull.Value ? 0 : Convert.ToInt64(reader["pedido_gemco"]),
-                            PedidoFikon = reader["pedido_fikon"] == DBNull.Value ? string.Empty : reader["pedido_fikon"].ToString(),
-                            Status = reader["STATUS"] == DBNull.Value ? string.Empty : reader["STATUS"].ToString()
-                        };
+                        command.Connection = connection;
+                        command.CommandText = @"
+                        SELECT [id], [pedido_gemco], [pedido_fikon], [STATUS]
+                         FROM [dbgemco].[dbo].[FIKON_INTEGRACAO_PEDIDO] WITH (NOLOCK)
+                         WHERE ISNULL([STATUS], '') not in ('LIBERADO CXA','FATURADO','FATURADO PARCIAL')
+                         AND ISNULL([pedido_fikon], '') <> ''";
 
-                        pedidos.Add(pedido);
+                        SqlDataReader reader = command.ExecuteReader();
+
+                        while (reader.Read())
+                        {
+                            PedidoIntegradoMonitoramento pedido = new PedidoIntegradoMonitoramento()
+                            {
+                                Id = reader["id"] == DBNull.Value ? 0 : Convert.ToInt32(reader["id"]),
+                                PedidoGemco = reader["pedido_gemco"] == DBNull.Value ? 0 : Convert.ToInt64(reader["pedido_gemco"]),
+                                PedidoFikon = reader["pedido_fikon"] == DBNull.Value ? string.Empty : reader["pedido_fikon"].ToString(),
+                                Status = reader["STATUS"] == DBNull.Value ? string.Empty : reader["STATUS"].ToString()
+                            };
+
+                            pedidos.Add(pedido);
+                        }
+
                     }
+                }
+                catch (Exception ex)
+                {
+
                 }
             }
 
@@ -558,11 +568,11 @@ namespace IntegradorFikon.Models.Fikon
 
         private void ExecutarAtualizacaoStatusPedidoGemco(long numpedven, int codfil, string documento, int bandeira, string tipo)
         {
-            using (SqlConnection connection = new SqlConnection(this.ConnectionStringAplicativos))
+            using (SqlConnection connection = new SqlConnection(this.ConnectionString))
             {
                 connection.Open();
 
-                using (SqlCommand command = new SqlCommand("[dbo].[SP_APIFIKON_ATUALIZA_STATUS]", connection))
+                using (SqlCommand command = new SqlCommand("[dbo].[SP_FIKON_ATUALIZA_STATUS_PEDIDO]", connection))
                 {
                     command.CommandType = CommandType.StoredProcedure;
                     command.Parameters.AddWithValue("@NUMPEDVEN", numpedven);
@@ -577,7 +587,7 @@ namespace IntegradorFikon.Models.Fikon
 
         private void AtualizarStatusPedidoIntegrado(int id, string status)
         {
-            using (SqlConnection connection = new SqlConnection(this.ConnectionStringAplicativos))
+            using (SqlConnection connection = new SqlConnection(this.ConnectionString))
             {
                 connection.Open();
 
@@ -585,7 +595,7 @@ namespace IntegradorFikon.Models.Fikon
                 {
                     command.Connection = connection;
                     command.CommandText = @"
-                        UPDATE [dbAplicativos].[dbo].[PEDIDOS_GEMCO_FIKON]
+                        UPDATE [FIKON_INTEGRACAO_PEDIDO]
                            SET [STATUS] = @STATUS
                          WHERE [id] = @ID";
                     command.Parameters.AddWithValue("@STATUS", status ?? string.Empty);

@@ -88,7 +88,7 @@ namespace IntegradorFikon
             timerPreco.Elapsed += OnTimerPreco;
             timerPreco.Start();
 
-            timerStatusPedidos = new System.Timers.Timer(5000);
+            timerStatusPedidos = new System.Timers.Timer(30000);
             timerStatusPedidos.Elapsed += OnTimerStatusPedidos;
             timerStatusPedidos.Start();
 
@@ -105,7 +105,7 @@ namespace IntegradorFikon
             eventLog1.WriteEntry("Serviço Iniciado");
 
 
-            repositorioFikon.insereClientesFikonTodos(repositorioCliente.GetClientes());
+            //repositorioFikon.insereClientesFikonTodos(repositorioCliente.GetClientes());
 
             //repositorioFikon.insereProdutoFikonTodos(repositorio.GetItensTodos());
 
@@ -151,11 +151,11 @@ namespace IntegradorFikon
           
 
 
-            repositorioFikon.insereFornecedorFikon(repositorioFornecedor.GetFornecedores());
+            //repositorioFikon.insereFornecedorFikon(repositorioFornecedor.GetFornecedores());
 
 
 
-            repositorioFikon.insereProdutoFikon(repositorio.GetItens());
+            //repositorioFikon.insereProdutoFikon(repositorio.GetItens());
 
 
 
@@ -175,10 +175,10 @@ namespace IntegradorFikon
 
 
 
-            repositorioFikon.inserePrecoFikon(repositorioPreco.GetPrecosUpdate());
+            //repositorioFikon.inserePrecoFikon(repositorioPreco.GetPrecosUpdate());
 
 
-            repositorioFikon.atualizaProdutoFikon(repositorio.GetItensUpdate());
+            //repositorioFikon.atualizaProdutoFikon(repositorio.GetItensUpdate());
 
 
 
@@ -186,14 +186,10 @@ namespace IntegradorFikon
 
         public void OnTimerStatusPedidos(object sender, System.Timers.ElapsedEventArgs args)
         {
-            if (executandoConsultaStatusPedidos)
-            {
-                return;
-            }
-
+           
             try
             {
-                executandoConsultaStatusPedidos = true;
+                
                 repositorioFikon.consultarStatusPedidosFikon().GetAwaiter().GetResult();
             }
             catch (Exception ex)
@@ -202,7 +198,7 @@ namespace IntegradorFikon
             }
             finally
             {
-                executandoConsultaStatusPedidos = false;
+                
             }
         }
 
