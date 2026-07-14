@@ -470,53 +470,84 @@ namespace IntegradorFikon.Models.Fikon
 
         private async Task ProcessarConsultaStatusPedidoAsync(HttpClient statusClient, PedidoIntegradoMonitoramento pedido)
         {
-            string url = urlBase + "/api-acal/api/v1/pedidos/pesquisarVenda?idPedido=" + Uri.EscapeDataString(pedido.PedidoFikon);
+            string url = $"{urlBase}/api-acal/api/v1/pedidos/pesquisarVenda?idPedido={Uri.EscapeDataString(pedido.PedidoFikon)}";
+
             HttpResponseMessage response = await statusClient.GetAsync(url).ConfigureAwait(false);
             string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
             if (!response.IsSuccessStatusCode)
             {
-                RegistrarErroConsultaStatus("STATUS_PEDIDO_FIKON", pedido.PedidoGemco, "Consulta do pedido FIKON retornou status " + (int)response.StatusCode + ". Body: " + body);
+                RegistrarErroConsultaStatus(
+                    "STATUS_PEDIDO_FIKON",
+                    pedido.PedidoGemco,
+                    $"Consulta do pedido FIKON retornou status {(int)response.StatusCode}. Body: {body}");
+
                 return;
             }
 
             JObject json = JObject.Parse(body);
-            string statusComercial = (json.SelectToken("dadosVenda.linhaDoTempo.statusComercial") ?? json.SelectToken("linhaDoTempo.statusComercial")) == null
-                ? string.Empty
-                : (json.SelectToken("dadosVenda.linhaDoTempo.statusComercial") ?? json.SelectToken("linhaDoTempo.statusComercial")).ToString();
 
-            if (!string.Equals(statusComercial, "Passado no Caixa / Aprovado", StringComparison.OrdinalIgnoreCase))
+            string statusComercial =
+                json.SelectToken("dadosVenda.linhaDoTempo.statusComercial")?.ToString()
+                ?? json.SelectToken("linhaDoTempo.statusComercial")?.ToString()
+                ?? string.Empty;
+
+            if (!statusComercial.Equals("Passado no Caixa / Aprovado", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            JToken financeiro = SelecionarFinanceiroParaAtualizacao(
+                json.SelectToken("dadosVenda.financeiro") as JArray);
+
+            if (financeiro == null)
             {
+                RegistrarErroConsultaStatus(
+                    "STATUS_PEDIDO_FIKON",
+                    pedido.PedidoGemco,
+                    $"Pedido FIKON {pedido.PedidoFikon} aprovado no caixa, mas sem financeiro retornado.");
+
                 return;
             }
 
-            JArray financeiros = json.SelectToken("dadosVenda.financeiro") as JArray;
-            JToken financeiroSelecionado = SelecionarFinanceiroParaAtualizacao(financeiros);
+            string documento = ObterDocumentoFinanceiro(financeiro);
+            string bandeira = ObterBandeiraFinanceiro(financeiro);
+            string forma = ObterFormaFinanceiro(json.SelectToken("dadosVenda.financeiro") as JArray);
 
-            if (financeiroSelecionado == null)
+            bool ehCartaoCredito = forma.Equals("Cartão de Crédito", StringComparison.OrdinalIgnoreCase);
+
+            ConveniadaCash conveniada = null;
+
+            if (ehCartaoCredito)
             {
-                RegistrarErroConsultaStatus("STATUS_PEDIDO_FIKON", pedido.PedidoGemco, "Pedido FIKON " + pedido.PedidoFikon + " aprovado no caixa, mas sem financeiro retornado.");
-                return;
+                if (string.IsNullOrWhiteSpace(bandeira))
+                {
+                    RegistrarErroConsultaStatus(
+                        "STATUS_PEDIDO_FIKON",
+                        pedido.PedidoGemco,
+                        $"Pedido FIKON {pedido.PedidoFikon} aprovado no caixa, mas sem bandeira no retorno da FIKON.");
+
+                    return;
+                }
+
+                conveniada = ConsultarConveniadaPorBandeira(bandeira);
+
+                if (conveniada == null)
+                {
+                    RegistrarErroConsultaStatus(
+                        "STATUS_PEDIDO_FIKON",
+                        pedido.PedidoGemco,
+                        $"Bandeira '{bandeira}' não encontrada em CASH_CONVENIADAS para o pedido FIKON {pedido.PedidoFikon}.");
+
+                    return;
+                }
             }
 
-            string documento = ObterDocumentoFinanceiro(financeiroSelecionado);
-            string bandeira = ObterBandeiraFinanceiro(financeiroSelecionado);
+            ExecutarAtualizacaoStatusPedidoGemco(
+                pedido.PedidoGemco,
+                502,
+                documento ?? string.Empty,
+                conveniada?.Codcon ?? 0,
+                conveniada?.Tipo ?? "DH");
 
-            if (string.IsNullOrWhiteSpace(bandeira))
-            {
-                RegistrarErroConsultaStatus("STATUS_PEDIDO_FIKON", pedido.PedidoGemco, "Pedido FIKON " + pedido.PedidoFikon + " aprovado no caixa, mas sem bandeira no retorno da FIKON.");
-                return;
-            }
-
-            ConveniadaCash conveniada = ConsultarConveniadaPorBandeira(bandeira);
-
-            if (conveniada == null)
-            {
-                RegistrarErroConsultaStatus("STATUS_PEDIDO_FIKON", pedido.PedidoGemco, "Bandeira '" + bandeira + "' não encontrada em CASH_CONVENIADAS para o pedido FIKON " + pedido.PedidoFikon + ".");
-                return;
-            }
-
-            ExecutarAtualizacaoStatusPedidoGemco(pedido.PedidoGemco, 502, documento, conveniada.Codcon, conveniada.Tipo);
             AtualizarStatusPedidoIntegrado(pedido.Id, "LIBERADO CXA");
         }
 
@@ -869,6 +900,31 @@ namespace IntegradorFikon.Models.Fikon
             return string.IsNullOrWhiteSpace(documento) ? string.Empty : documento.Trim();
         }
 
+        public static string ObterFormaFinanceiro(JArray financeiro)
+        {
+            if (financeiro == null || !financeiro.Any())
+                return string.Empty;
+
+            try
+            {
+                // Prioriza Cartão de Crédito
+                var cartao = financeiro.FirstOrDefault(f =>
+                    string.Equals(
+                        f["formaPagamento"]?["nome"]?.ToString(),
+                        "Cartão de Crédito",
+                        StringComparison.OrdinalIgnoreCase));
+
+                if (cartao != null)
+                    return cartao["formaPagamento"]?["nome"]?.ToString();
+
+                // Caso não exista cartão, retorna a primeira forma de pagamento
+                return financeiro.First()?["formaPagamento"]?["nome"]?.ToString();
+            }catch(Exception ex)
+            {
+                return "";
+            }
+        }
+
         private static string ObterBandeiraFinanceiro(JToken financeiroSelecionado)
         {
             if (financeiroSelecionado == null)
@@ -888,14 +944,24 @@ namespace IntegradorFikon.Models.Fikon
 
             if (financeiroSelecionado["bandeira"] != null)
             {
-                if (TemValorFinanceiro(financeiroSelecionado["bandeira"]["nome"]))
+                try
                 {
-                    return financeiroSelecionado["bandeira"]["nome"].ToString().Trim();
-                }
 
-                if (TemValorFinanceiro(financeiroSelecionado["bandeira"]["descricao"]))
+
+                    var bandeira = financeiroSelecionado["bandeira"];
+
+                    if (bandeira != null && bandeira.Type != JTokenType.Null)
+                    {
+                        if (TemValorFinanceiro(bandeira["nome"]))
+                            return bandeira["nome"].ToString().Trim();
+
+                        if (TemValorFinanceiro(bandeira["descricao"]))
+                            return bandeira["descricao"].ToString().Trim();
+                    }
+
+                } catch(Exception ex)
                 {
-                    return financeiroSelecionado["bandeira"]["descricao"].ToString().Trim();
+
                 }
             }
 
