@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using IntegradorFikon.Conexao;
+﻿﻿﻿﻿﻿using IntegradorFikon.Conexao;
 using IntegradorFikon.Models.Produtos;
 using IntegradorFikon.Models.Fornecedor;
 using Newtonsoft.Json;
@@ -6,10 +6,12 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Data;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using System.Data.SqlClient;
 using System.Data.SqlClient;
 
 namespace IntegradorFikon.Models.Fikon
@@ -436,6 +438,36 @@ namespace IntegradorFikon.Models.Fikon
             }
         }
 
+        public async Task consultarFaturamentoPedidosFikon()
+        {
+            List<PedidoIntegradoMonitoramento> pedidosLiberados = ConsultarPedidosLiberadosCaixaParaFaturamento();
+
+            if (pedidosLiberados == null || pedidosLiberados.Count == 0)
+            {
+                return;
+            }
+
+            using (HttpClient faturamentoClient = new HttpClient())
+            {
+                if (!faturamentoClient.DefaultRequestHeaders.Contains("Authorization"))
+                {
+                    faturamentoClient.DefaultRequestHeaders.Add("Authorization", chaveApi);
+                }
+
+                foreach (PedidoIntegradoMonitoramento pedido in pedidosLiberados)
+                {
+                    try
+                    {
+                        await ProcessarConsultaFaturamentoPedidoAsync(faturamentoClient, pedido).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        RegistrarErroConsultaStatus("FATURAMENTO_PEDIDO_FIKON", pedido.PedidoGemco, "Erro ao consultar faturamento do pedido FIKON " + pedido.PedidoFikon + ": " + ex.Message);
+                    }
+                }
+            }
+        }
+
         private async Task ProcessarConsultaStatusPedidoAsync(HttpClient statusClient, PedidoIntegradoMonitoramento pedido)
         {
             string url = urlBase + "/api-acal/api/v1/pedidos/pesquisarVenda?idPedido=" + Uri.EscapeDataString(pedido.PedidoFikon);
@@ -488,6 +520,70 @@ namespace IntegradorFikon.Models.Fikon
             AtualizarStatusPedidoIntegrado(pedido.Id, "LIBERADO CXA");
         }
 
+        private async Task ProcessarConsultaFaturamentoPedidoAsync(HttpClient faturamentoClient, PedidoIntegradoMonitoramento pedido)
+        {
+            string url = urlBase + "/api-acal/api/v1/pedidos/pesquisarVenda?idPedido=" + Uri.EscapeDataString(pedido.PedidoFikon);
+            HttpResponseMessage response = await faturamentoClient.GetAsync(url).ConfigureAwait(false);
+            string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                RegistrarErroConsultaStatus("FATURAMENTO_PEDIDO_FIKON", pedido.PedidoGemco, "Consulta do pedido FIKON retornou status " + (int)response.StatusCode + ". Body: " + body);
+                return;
+            }
+
+            JObject json = JObject.Parse(body);
+            JArray produtos = json.SelectToken("dadosVenda.produtos") as JArray;
+
+            if (produtos == null || produtos.Count == 0)
+            {
+                return;
+            }
+
+            List<FaturamentoIntegracaoPedido> faturamentos = ExtrairFaturamentosIntegracao(produtos);
+
+            if (faturamentos == null || faturamentos.Count == 0)
+            {
+                return;
+            }
+
+            bool todosItensFaturados = produtos.All(produto =>
+            {
+                JArray fat = produto["faturamentos"] as JArray;
+                return fat != null && fat.Count > 0;
+            });
+
+            string statusAtualizado = todosItensFaturados ? "FATURADO" : "FATURADO PARCIAL";
+
+            HashSet<string> chavesProcessadas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (FaturamentoIntegracaoPedido faturamento in faturamentos)
+            {
+                string chaveDedup = string.IsNullOrWhiteSpace(faturamento.ChaveAcesso)
+                    ? faturamento.NumeroNota.ToString(CultureInfo.InvariantCulture)
+                    : faturamento.ChaveAcesso;
+
+                if (chavesProcessadas.Contains(chaveDedup))
+                {
+                    continue;
+                }
+
+                chavesProcessadas.Add(chaveDedup);
+
+                try
+                {
+                    ExecutarIntegracaoMovSaida(pedido.PedidoGemco, faturamento.NumeroNota, faturamento.Serie, faturamento.ChaveAcesso, faturamento.DataHoraEmissao);
+                }
+                catch (Exception ex)
+                {
+                    RegistrarErroConsultaStatus("FATURAMENTO_PEDIDO_FIKON", pedido.PedidoGemco, "Erro ao executar SP_FIKON_INTEGRA_MOV_SAIDA para o pedido FIKON " + pedido.PedidoFikon + ": " + ex.Message);
+                    return;
+                }
+            }
+
+            AtualizarStatusPedidoIntegrado(pedido.Id, statusAtualizado);
+        }
+
         private List<PedidoIntegradoMonitoramento> ConsultarPedidosPendentesLiberacaoCaixa()
         {
             List<PedidoIntegradoMonitoramento> pedidos = new List<PedidoIntegradoMonitoramento>();
@@ -533,6 +629,140 @@ namespace IntegradorFikon.Models.Fikon
             }
 
             return pedidos;
+        }
+
+        private List<PedidoIntegradoMonitoramento> ConsultarPedidosLiberadosCaixaParaFaturamento()
+        {
+            List<PedidoIntegradoMonitoramento> pedidos = new List<PedidoIntegradoMonitoramento>();
+
+            using (SqlConnection connection = new SqlConnection(this.ConnectionString))
+            {
+                try
+                {
+                    connection.Open();
+
+                    using (SqlCommand command = new SqlCommand())
+                    {
+                        command.Connection = connection;
+                        command.CommandText = @"
+                        SELECT [id], [pedido_gemco], [pedido_fikon], [STATUS]
+                         FROM [dbgemco].[dbo].[FIKON_INTEGRACAO_PEDIDO] WITH (NOLOCK)
+                        WHERE UPPER(LTRIM(RTRIM(ISNULL([STATUS], '')))) = 'LIBERADO CXA'
+                          AND ISNULL([pedido_fikon], '') <> ''";
+
+                        SqlDataReader reader = command.ExecuteReader();
+
+                        while (reader.Read())
+                        {
+                            PedidoIntegradoMonitoramento pedido = new PedidoIntegradoMonitoramento()
+                            {
+                                Id = reader["id"] == DBNull.Value ? 0 : Convert.ToInt32(reader["id"]),
+                                PedidoGemco = reader["pedido_gemco"] == DBNull.Value ? 0 : Convert.ToInt64(reader["pedido_gemco"]),
+                                PedidoFikon = reader["pedido_fikon"] == DBNull.Value ? string.Empty : reader["pedido_fikon"].ToString(),
+                                Status = reader["STATUS"] == DBNull.Value ? string.Empty : reader["STATUS"].ToString()
+                            };
+
+                            pedidos.Add(pedido);
+                        }
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            return pedidos;
+        }
+
+        private static List<FaturamentoIntegracaoPedido> ExtrairFaturamentosIntegracao(JArray produtos)
+        {
+            List<FaturamentoIntegracaoPedido> faturamentos = new List<FaturamentoIntegracaoPedido>();
+
+            foreach (JToken produto in produtos)
+            {
+                JArray fats = produto["faturamentos"] as JArray;
+                if (fats == null || fats.Count == 0)
+                {
+                    continue;
+                }
+
+                foreach (JToken fat in fats)
+                {
+                    string numero = fat["numero"] == null ? string.Empty : fat["numero"].ToString();
+                    string chaveAcesso = fat["chaveAcesso"] == null ? string.Empty : fat["chaveAcesso"].ToString();
+                    string dataEmissao = fat["dataEmissao"] == null ? string.Empty : fat["dataEmissao"].ToString();
+                    string horaEmissao = fat["horaEmissao"] == null ? string.Empty : fat["horaEmissao"].ToString();
+
+                    long numeroNota;
+                    if (!long.TryParse((numero ?? string.Empty).Trim().TrimStart('0'), out numeroNota))
+                    {
+                        long.TryParse((numero ?? string.Empty).Trim(), out numeroNota);
+                    }
+
+                    if (numeroNota <= 0)
+                    {
+                        continue;
+                    }
+
+                    DateTime dataHora;
+                    if (!DateTime.TryParseExact(
+                        (dataEmissao ?? string.Empty).Trim() + " " + (horaEmissao ?? string.Empty).Trim(),
+                        "yyyy-MM-dd HH:mm:ss",
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.None,
+                        out dataHora))
+                    {
+                        if (!DateTime.TryParse((dataEmissao ?? string.Empty).Trim(), CultureInfo.InvariantCulture, DateTimeStyles.None, out dataHora))
+                        {
+                            continue;
+                        }
+                    }
+
+                    string serie = ObterSerieChaveAcesso(chaveAcesso);
+
+                    faturamentos.Add(new FaturamentoIntegracaoPedido()
+                    {
+                        NumeroNota = numeroNota,
+                        Serie = serie,
+                        ChaveAcesso = (chaveAcesso ?? string.Empty).Trim(),
+                        DataHoraEmissao = dataHora
+                    });
+                }
+            }
+
+            return faturamentos;
+        }
+
+        private static string ObterSerieChaveAcesso(string chaveAcesso)
+        {
+            string chave = (chaveAcesso ?? string.Empty).Trim();
+            string somenteDigitos = new string(chave.Where(char.IsDigit).ToArray());
+
+            if (somenteDigitos.Length >= 25)
+            {
+                return somenteDigitos.Substring(22, 3);
+            }
+
+            return "001";
+        }
+
+        private void ExecutarIntegracaoMovSaida(long numpedven, long numnota, string serie, string chave, DateTime hrhora)
+        {
+            using (SqlConnection connection = new SqlConnection(this.ConnectionString))
+            {
+                connection.Open();
+
+                using (SqlCommand command = new SqlCommand("[dbo].[SP_FIKON_INTEGRA_MOV_SAIDA]", connection))
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.Parameters.AddWithValue("@numpedven", numpedven);
+                    command.Parameters.AddWithValue("@numnota", numnota);
+                    command.Parameters.AddWithValue("@serie", string.IsNullOrWhiteSpace(serie) ? string.Empty : serie.Trim());
+                    command.Parameters.AddWithValue("@chave", string.IsNullOrWhiteSpace(chave) ? string.Empty : chave.Trim());
+                    command.Parameters.AddWithValue("@hrhora", hrhora);
+                    command.ExecuteNonQuery();
+                }
+            }
         }
 
         private ConveniadaCash ConsultarConveniadaPorBandeira(string bandeira)
@@ -713,5 +943,13 @@ namespace IntegradorFikon.Models.Fikon
     {
         public int Codcon { get; set; }
         public string Tipo { get; set; }
+    }
+
+    class FaturamentoIntegracaoPedido
+    {
+        public long NumeroNota { get; set; }
+        public string Serie { get; set; }
+        public string ChaveAcesso { get; set; }
+        public DateTime DataHoraEmissao { get; set; }
     }
 }

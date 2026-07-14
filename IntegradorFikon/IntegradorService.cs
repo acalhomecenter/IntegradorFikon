@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿using System;
+﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -22,7 +22,9 @@ namespace IntegradorFikon
        //private EventLog eventLog1;
         private int eventId = 1;
         private System.Timers.Timer timerStatusPedidos;
+        private System.Timers.Timer timerFaturamentoPedidos;
         private bool executandoConsultaStatusPedidos = false;
+        private bool executandoConsultaFaturamentoPedidos = false;
         static readonly IProdutoRepositorio repositorio = new ProdutoRepositorio();
         static readonly IClienteRepositorio repositorioCliente = new ClienteRepositorio();
         static readonly IFornecedorRepositorio repositorioFornecedor = new FornecedorRepositorio();
@@ -91,6 +93,10 @@ namespace IntegradorFikon
             timerStatusPedidos = new System.Timers.Timer(30000);
             timerStatusPedidos.Elapsed += OnTimerStatusPedidos;
             timerStatusPedidos.Start();
+
+            timerFaturamentoPedidos = new System.Timers.Timer(30000);
+            timerFaturamentoPedidos.Elapsed += OnTimerFaturamentoPedidos;
+            timerFaturamentoPedidos.Start();
 
             // Update the service state to Start Pending.
             ServiceStatus serviceStatus = new ServiceStatus();
@@ -186,10 +192,14 @@ namespace IntegradorFikon
 
         public void OnTimerStatusPedidos(object sender, System.Timers.ElapsedEventArgs args)
         {
+            if (executandoConsultaStatusPedidos)
+            {
+                return;
+            }
            
             try
             {
-                
+                executandoConsultaStatusPedidos = true;
                 repositorioFikon.consultarStatusPedidosFikon().GetAwaiter().GetResult();
             }
             catch (Exception ex)
@@ -198,7 +208,29 @@ namespace IntegradorFikon
             }
             finally
             {
-                
+                executandoConsultaStatusPedidos = false;
+            }
+        }
+
+        public void OnTimerFaturamentoPedidos(object sender, System.Timers.ElapsedEventArgs args)
+        {
+            if (executandoConsultaFaturamentoPedidos)
+            {
+                return;
+            }
+
+            try
+            {
+                executandoConsultaFaturamentoPedidos = true;
+                repositorioFikon.consultarFaturamentoPedidosFikon().GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                eventLog1.WriteEntry("Erro ao consultar faturamento de pedidos integrados na FIKON: " + ex.Message, EventLogEntryType.Error);
+            }
+            finally
+            {
+                executandoConsultaFaturamentoPedidos = false;
             }
         }
 

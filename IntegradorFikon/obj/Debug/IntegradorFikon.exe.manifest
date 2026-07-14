@@ -33,7 +33,7 @@
   <dependency>
     <dependentOS>
       <osVersionInfo>
-        <os majorVersion="5" minorVersion="1" buildNumber="2600" servicePackMajor="0" />
+        <os majorVersion="4" minorVersion="10" buildNumber="0" servicePackMajor="0" />
       </osVersionInfo>
     </dependentOS>
   </dependency>
@@ -43,14 +43,14 @@
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="IntegradorFikon.exe" size="222208">
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="IntegradorFikon.exe" size="231424">
       <assemblyIdentity name="IntegradorFikon" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>9Ux1Ns7e8yuBRmxb72PKpeZum1dK32f9RmVMQC2T+9w=</dsig:DigestValue>
+        <dsig:DigestValue>cs9glRws4w74uNnPNRFOJEYCqvEVxbPRv1Px6upzduw=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
