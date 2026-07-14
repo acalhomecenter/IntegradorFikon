@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using IntegradorFikon.Models.Produtos;
+﻿﻿﻿using IntegradorFikon.Models.Produtos;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,5 +16,6 @@ namespace IntegradorFikon.Models.Fikon
         void inserePrecoFikon(IEnumerable<IntegradorFikon.Models.Preco.Preco> preco);
         void insereClientesFikonTodos(List<Models.Cliente.Cliente> cliente);
         Task consultarStatusPedidosFikon();
+        Task consultarFaturamentoPedidosFikon();
     }
 }

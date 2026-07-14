@@ -7,14 +7,18 @@
     <framework targetVersion="4.5" profile="Full" supportedRuntime="4.0.30319" />
   </compatibleFrameworks>
   <dependency>
-    <dependentAssembly dependencyType="install" codebase="IntegradorFikon.exe.manifest" size="5808">
+    <dependentAssembly dependencyType="install" codebase="IntegradorFikon.exe.manifest" size="5806">
       <assemblyIdentity name="IntegradorFikon.exe" version="1.0.0.1" publicKeyToken="0000000000000000" language="neutral" processorArchitecture="msil" type="win32" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+<<<<<<< HEAD
+        <dsig:DigestValue>UuRGlnH1I6N1aYyPSfZBiU6N4yswHWc0V5E1EULrFNE=</dsig:DigestValue>
+=======
         <dsig:DigestValue>l+eqTKZ4D2sRDCiKvv54ta7EPwEmqOQwQeQdFFiMEro=</dsig:DigestValue>
+>>>>>>> 82955df859602f4b748a9881128a97102eb1acb4
       </hash>
     </dependentAssembly>
   </dependency>
