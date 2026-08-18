@@ -135,7 +135,7 @@ namespace IntegradorFikon.Models.Fikon
         {
             client = new HttpClient();
 
-            string url = urlBase + "/api-acal/api/v1/cliente";
+            string url = urlBase + "/integracao-fikon/v1/cliente";
 
             var clientes = cliente.ToArray();
 
@@ -172,13 +172,13 @@ namespace IntegradorFikon.Models.Fikon
 
                     //executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='E', DTINTEGRACAO=getdate() WHERE status='P' and tipo='I' and codprod=" + produtos[i].codprod, ConnectionString);
 
-                    executaQuery("INSERT INTO FIKON_LOG_INTEGRADOR(ERRO,MODULO,CODPROD,DTERRO,BODY) VALUES(" +
-                                               "'" + json.GetValue("message").ToString().Replace("'", "") + "'," +
-                                               "'CLIENTE_TODOS' ," +
-                                               clientes[i].codigo + "," +
-                                               "getdate() ," +
-                                               "'" + jcontent.ToString() + "'" +
-                                               ")", ConnectionString);
+                    //executaQuery("INSERT INTO FIKON_LOG_INTEGRADOR(ERRO,MODULO,CODPROD,DTERRO,BODY) VALUES(" +
+                    //                           "'" + json.GetValue("message").ToString().Replace("'", "") + "'," +
+                    //                           "'CLIENTE_TODOS' ," +
+                    //                           clientes[i].codigo + "," +
+                    //                           "getdate() ," +
+                    //                           "'" + jcontent.ToString() + "'" +
+                    //                           ")", ConnectionString);
                 }
 
 
@@ -188,9 +188,74 @@ namespace IntegradorFikon.Models.Fikon
         }
 
 
+        public async Task insereClientesFikon(List<Models.Cliente.Cliente> cliente)
+        {
+            client = new HttpClient();
+
+            string url = urlBase + "/api-acal/api/v1/cliente";
+
+            var clientes = cliente.ToArray();
+
+            if (!client.DefaultRequestHeaders.Contains("Authorization"))
+            {
+                client.DefaultRequestHeaders.Add("Authorization", chaveApi);
+            }
+
+            for (int i = 0; i < clientes.Count(); i++)
+            {
+                try
+                {
+
+                
+                //System.Threading.Thread.Sleep(1000);
+
+                jcontent = JsonConvert.SerializeObject(clientes[i]);
+
+                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
+                HttpResponseMessage response = await client.PostAsync(url, new StringContent(jcontent, Encoding.UTF8, "application/json")).ConfigureAwait(false);
+
+                if (response.StatusCode.ToString() == "OK")
+                {
+                    string res = await response.Content.ReadAsStringAsync();
+                    JObject json = JObject.Parse(res);
+
+                    executaQuery("UPDATE FIKON_CAD_CLIENTE WITH (READCOMMITTED) SET STATUS='R', DTINTEGRACAO=getdate() , retorno = " + "'" + json.GetValue("dados").ToString().Replace("'", "") + "'" + "WHERE status='P' and tipo='I' and codcli=" + clientes[i].codigo.ToString().Replace("C", ""), ConnectionString);
+                    executaQuery("UPDATE FIKON_CAD_END_CLIENTE WITH (READCOMMITTED) SET STATUS='R', DTINTEGRACAO=getdate() , retorno = " + "'" + json.GetValue("dados").ToString().Replace("'", "") + "'" + "WHERE status='P' and tipo='I' and codcli=" + clientes[i].codigo.ToString().Replace("C", ""), ConnectionString);
+
+                }
 
 
-        public async void insereProdutoFikon(IEnumerable<Produto> prods)
+                else
+                {
+
+                    string res = await response.Content.ReadAsStringAsync();
+                    JObject json = JObject.Parse(res);
+
+                    executaQuery("UPDATE FIKON_CAD_CLIENTE WITH (READCOMMITTED) SET STATUS='E', DTINTEGRACAO=getdate() WHERE status='P' and tipo='I' and codcli=" + clientes[i].codigo.ToString().Replace("C", ""), ConnectionString);
+                    executaQuery("UPDATE FIKON_CAD_END_CLIENTE WITH (READCOMMITTED) SET STATUS='E', DTINTEGRACAO=getdate() WHERE status='P' and tipo='I' and codcli=" + clientes[i].codigo.ToString().Replace("C", ""), ConnectionString);
+
+                    executaQuery("INSERT INTO FIKON_LOG_INTEGRADOR(ERRO,MODULO,CODPROD,DTERRO,BODY) VALUES(" +
+                                               "'" + json.GetValue("message").ToString().Replace("'", "") + "'," +
+                                               "'CLIENTE' ," +
+                                               "'" +clientes[i].codigo + "'," +
+                                               "getdate() ," +
+                                               "'" + jcontent.ToString() + "'" +
+                                               ")", ConnectionString);
+                }
+
+
+                }catch(Exception ex)
+                {
+
+                }
+
+            }
+        }
+
+
+
+
+        public async Task insereProdutoFikon(IEnumerable<Produto> prods)
         {
             client = new HttpClient();
 
@@ -205,6 +270,10 @@ namespace IntegradorFikon.Models.Fikon
 
             for (int i = 0; i < produtos.Count(); i++)
             {
+                try
+                {
+
+                
                 System.Threading.Thread.Sleep(5000);
 
                 jcontent = JsonConvert.SerializeObject(produtos[i]);
@@ -240,12 +309,15 @@ namespace IntegradorFikon.Models.Fikon
 
 
 
+                }catch(Exception ex)
+                {
 
                 }
+            }
         }
 
 
-        public async void atualizaProdutoFikon(IEnumerable<Produto> prods)
+        public async Task atualizaProdutoFikon(IEnumerable<Produto> prods)
         {
             client = new HttpClient();
 
@@ -260,6 +332,10 @@ namespace IntegradorFikon.Models.Fikon
 
             for (int i = 0; i < produtos.Count(); i++)
             {
+                try
+                {
+
+                
                 System.Threading.Thread.Sleep(5000);
 
                 jcontentAtualiza = JsonConvert.SerializeObject(produtos[i]);
@@ -293,14 +369,17 @@ namespace IntegradorFikon.Models.Fikon
                                                ")", ConnectionString);
                 }
 
+                }catch(Exception ex)
+                {
 
+                }
 
 
             }
         }
 
 
-        public async void insereFornecedorFikon(IEnumerable<IntegradorFikon.Models.Fornecedor.Fornecedor> forne)
+        public async Task insereFornecedorFikon(IEnumerable<IntegradorFikon.Models.Fornecedor.Fornecedor> forne)
         {
             client = new HttpClient();
 
@@ -315,6 +394,10 @@ namespace IntegradorFikon.Models.Fikon
 
             for (int i = 0; i < fornecedores.Count(); i++)
             {
+                try
+                {
+
+                
                 System.Threading.Thread.Sleep(5000);
 
                 jcontentForne = JsonConvert.SerializeObject(fornecedores[i]);
@@ -349,12 +432,15 @@ namespace IntegradorFikon.Models.Fikon
                 }
 
 
+                }catch(Exception ex)
+                {
 
+                }
 
             }
         }
 
-        public async void inserePrecoFikon(IEnumerable<IntegradorFikon.Models.Preco.Preco> preco)
+        public async Task inserePrecoFikon(IEnumerable<IntegradorFikon.Models.Preco.Preco> preco)
         {
             client = new HttpClient();
 
@@ -369,6 +455,10 @@ namespace IntegradorFikon.Models.Fikon
 
             for (int i = 0; i < precos.Count(); i++)
             {
+                try
+                {
+
+                
                 System.Threading.Thread.Sleep(5000);
 
                 jcontentPreco = JsonConvert.SerializeObject(precos[i]);
@@ -403,6 +493,10 @@ namespace IntegradorFikon.Models.Fikon
                 }
 
 
+                }catch(Exception ex)
+                {
+
+                }
 
 
             }
@@ -723,6 +817,7 @@ namespace IntegradorFikon.Models.Fikon
                     string chaveAcesso = fat["chaveAcesso"] == null ? string.Empty : fat["chaveAcesso"].ToString();
                     string dataEmissao = fat["dataEmissao"] == null ? string.Empty : fat["dataEmissao"].ToString();
                     string horaEmissao = fat["horaEmissao"] == null ? string.Empty : fat["horaEmissao"].ToString();
+                    string TipoDocumento = fat["tipoDocumento"]?.ToString() ?? string.Empty;
 
                     long numeroNota;
                     if (!long.TryParse((numero ?? string.Empty).Trim().TrimStart('0'), out numeroNota))
@@ -749,7 +844,7 @@ namespace IntegradorFikon.Models.Fikon
                         }
                     }
 
-                    string serie = ObterSerieChaveAcesso(chaveAcesso);
+                    string serie = ObterSerie(TipoDocumento);
 
                     faturamentos.Add(new FaturamentoIntegracaoPedido()
                     {
@@ -764,17 +859,28 @@ namespace IntegradorFikon.Models.Fikon
             return faturamentos;
         }
 
-        private static string ObterSerieChaveAcesso(string chaveAcesso)
+        private static string ObterSerie(string tipoDocumento)
         {
-            string chave = (chaveAcesso ?? string.Empty).Trim();
-            string somenteDigitos = new string(chave.Where(char.IsDigit).ToArray());
+            //string chave = (chaveAcesso ?? string.Empty).Trim();
+            //string somenteDigitos = new string(chave.Where(char.IsDigit).ToArray());
 
-            if (somenteDigitos.Length >= 25)
+            //if (somenteDigitos.Length >= 25)
+            //{
+            //    return somenteDigitos.Substring(22, 3);
+            //}
+
+            //return "001";
+
+            string tipo = (tipoDocumento ?? string.Empty).Trim();
+
+            if (tipo.Equals("Nota Fiscal Eletrônica"))
             {
-                return somenteDigitos.Substring(22, 3);
+                return "1";
+            } else
+            {
+                return "U01";
             }
 
-            return "001";
         }
 
         private void ExecutarIntegracaoMovSaida(long numpedven, long numnota, string serie, string chave, DateTime hrhora)
@@ -878,8 +984,8 @@ namespace IntegradorFikon.Models.Fikon
                 || TemValorFinanceiro(financeiro["autorizacaoCartao"])
                 || TemValorFinanceiro(financeiro["bandeira"])
                 || (financeiro["formaPagamento"] != null
-                    && financeiro["formaPagamento"]["nome"] != null
-                    && financeiro["formaPagamento"]["nome"].ToString().IndexOf("Cart", StringComparison.OrdinalIgnoreCase) >= 0));
+                    && financeiro["formaPagamento"] != null
+                    && financeiro["formaPagamento"].ToString().IndexOf("Cart", StringComparison.OrdinalIgnoreCase) >= 0));
 
             return financeiroCartao ?? financeiros.First;
         }
@@ -910,15 +1016,15 @@ namespace IntegradorFikon.Models.Fikon
                 // Prioriza Cartão de Crédito
                 var cartao = financeiro.FirstOrDefault(f =>
                     string.Equals(
-                        f["formaPagamento"]?["nome"]?.ToString(),
+                        f["formaPagamento"]?.ToString(),
                         "Cartão de Crédito",
                         StringComparison.OrdinalIgnoreCase));
 
                 if (cartao != null)
-                    return cartao["formaPagamento"]?["nome"]?.ToString();
+                    return cartao["formaPagamento"]?.ToString();
 
                 // Caso não exista cartão, retorna a primeira forma de pagamento
-                return financeiro.First()?["formaPagamento"]?["nome"]?.ToString();
+                return financeiro.First()?["formaPagamento"]?.ToString();
             }catch(Exception ex)
             {
                 return "";
@@ -952,10 +1058,10 @@ namespace IntegradorFikon.Models.Fikon
 
                     if (bandeira != null && bandeira.Type != JTokenType.Null)
                     {
-                        if (TemValorFinanceiro(bandeira["nome"]))
-                            return bandeira["nome"].ToString().Trim();
+                        if (TemValorFinanceiro(bandeira))
+                            return bandeira.ToString().Trim();
 
-                        if (TemValorFinanceiro(bandeira["descricao"]))
+                        if (TemValorFinanceiro(bandeira))
                             return bandeira["descricao"].ToString().Trim();
                     }
 

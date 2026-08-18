@@ -9,5 +9,6 @@ namespace IntegradorFikon.Models.Cliente
     interface IClienteRepositorio
     {
         List<Cliente> GetClientes();
+        List<Cliente> GetClientesCarga();
     }
 }

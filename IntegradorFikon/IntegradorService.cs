@@ -111,7 +111,7 @@ namespace IntegradorFikon
             eventLog1.WriteEntry("Serviço Iniciado");
 
 
-            //repositorioFikon.insereClientesFikonTodos(repositorioCliente.GetClientes());
+            //repositorioFikon.insereClientesFikonTodos(repositorioCliente.GetClientesCarga());
 
             //repositorioFikon.insereProdutoFikonTodos(repositorio.GetItensTodos());
 
@@ -154,15 +154,16 @@ namespace IntegradorFikon
 
 
 
-          
-
-
-            //repositorioFikon.insereFornecedorFikon(repositorioFornecedor.GetFornecedores());
 
 
 
-            //repositorioFikon.insereProdutoFikon(repositorio.GetItens());
+            repositorioFikon.insereFornecedorFikon(repositorioFornecedor.GetFornecedores());
 
+
+            repositorioFikon.insereProdutoFikon(repositorio.GetItens());
+
+
+            repositorioFikon.insereClientesFikon(repositorioCliente.GetClientes());
 
 
 
@@ -181,10 +182,10 @@ namespace IntegradorFikon
 
 
 
-            //repositorioFikon.inserePrecoFikon(repositorioPreco.GetPrecosUpdate());
+            repositorioFikon.inserePrecoFikon(repositorioPreco.GetPrecosUpdate());
 
 
-            //repositorioFikon.atualizaProdutoFikon(repositorio.GetItensUpdate());
+            repositorioFikon.atualizaProdutoFikon(repositorio.GetItensUpdate());
 
 
 
