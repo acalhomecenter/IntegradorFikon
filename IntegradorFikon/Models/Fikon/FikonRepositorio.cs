@@ -672,41 +672,62 @@ namespace IntegradorFikon.Models.Fikon
                 return;
             }
 
+            // Só conta como faturado o item que tem ao menos uma nota ativa (cancelada não vale).
             bool todosItensFaturados = produtos.All(produto =>
             {
                 JArray fat = produto["faturamentos"] as JArray;
-                return fat != null && fat.Count > 0;
+                return fat != null && fat.Any(NotaEstaAtiva);
             });
 
             string statusAtualizado = todosItensFaturados ? "FATURADO" : "FATURADO PARCIAL";
 
             HashSet<string> chavesProcessadas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool houveErro = false;
 
             foreach (FaturamentoIntegracaoPedido faturamento in faturamentos)
             {
                 string chaveDedup = string.IsNullOrWhiteSpace(faturamento.ChaveAcesso)
-                    ? faturamento.NumeroNota.ToString(CultureInfo.InvariantCulture)
+                    ? faturamento.Serie + "-" + faturamento.NumeroNota.ToString(CultureInfo.InvariantCulture)
                     : faturamento.ChaveAcesso;
 
-                if (chavesProcessadas.Contains(chaveDedup))
+                if (!chavesProcessadas.Add(chaveDedup))
                 {
                     continue;
                 }
 
-                chavesProcessadas.Add(chaveDedup);
-
                 try
                 {
+                    // O pedido volta para a fila após cancelamento ou faturamento parcial:
+                    // nota que já está no Gemco não é inserida de novo.
+                    SituacaoNotaGemco situacao = ConsultarNotaNoGemco(pedido.PedidoGemco, faturamento.NumeroNota, faturamento.Serie);
+
+                    if (situacao == SituacaoNotaGemco.Ativa)
+                    {
+                        continue;
+                    }
+
+                    if (situacao == SituacaoNotaGemco.Cancelada)
+                    {
+                        houveErro = true;
+                        RegistrarErroConsultaStatus("FATURAMENTO_PEDIDO_FIKON", pedido.PedidoGemco, "Nota " + faturamento.NumeroNota + " série " + faturamento.Serie + " está ativa na FIKON mas cancelada no Gemco (pedido FIKON " + pedido.PedidoFikon + "). Verificar manualmente.");
+                        continue;
+                    }
+
                     ExecutarIntegracaoMovSaida(pedido.PedidoGemco, faturamento.NumeroNota, faturamento.Serie, faturamento.ChaveAcesso, faturamento.DataHoraEmissao);
                 }
                 catch (Exception ex)
                 {
-                    RegistrarErroConsultaStatus("FATURAMENTO_PEDIDO_FIKON", pedido.PedidoGemco, "Erro ao executar SP_FIKON_INTEGRA_MOV_SAIDA para o pedido FIKON " + pedido.PedidoFikon + ": " + ex.Message);
-                    return;
+                    houveErro = true;
+                    RegistrarErroConsultaStatus("FATURAMENTO_PEDIDO_FIKON", pedido.PedidoGemco, "Erro ao executar SP_FIKON_INTEGRA_MOV_SAIDA para a nota " + faturamento.NumeroNota + " do pedido FIKON " + pedido.PedidoFikon + ": " + ex.Message);
                 }
             }
 
-            AtualizarStatusPedidoIntegrado(pedido.Id, statusAtualizado);
+            // Com erro, o status não muda: o pedido continua na fila e as notas que faltam
+            // são tentadas de novo no próximo ciclo (as já gravadas são puladas).
+            if (!houveErro)
+            {
+                AtualizarStatusPedidoIntegrado(pedido.Id, statusAtualizado);
+            }
         }
 
         private List<PedidoIntegradoMonitoramento> ConsultarPedidosPendentesLiberacaoCaixa()
@@ -772,7 +793,7 @@ namespace IntegradorFikon.Models.Fikon
                         command.CommandText = @"
                         SELECT [id], [pedido_gemco], [pedido_fikon], [STATUS]
                          FROM [dbgemco].[dbo].[FIKON_INTEGRACAO_PEDIDO] WITH (NOLOCK)
-                        WHERE UPPER(LTRIM(RTRIM(ISNULL([STATUS], '')))) = 'LIBERADO CXA'
+                        WHERE UPPER(LTRIM(RTRIM(ISNULL([STATUS], '')))) IN ('LIBERADO CXA', 'FATURADO PARCIAL')
                           AND ISNULL([pedido_fikon], '') <> ''";
 
                         SqlDataReader reader = command.ExecuteReader();
@@ -813,6 +834,12 @@ namespace IntegradorFikon.Models.Fikon
 
                 foreach (JToken fat in fats)
                 {
+                    // Nota cancelada na FIKON nunca vira faturamento no Gemco.
+                    if (!NotaEstaAtiva(fat))
+                    {
+                        continue;
+                    }
+
                     string numero = fat["numero"] == null ? string.Empty : fat["numero"].ToString();
                     string chaveAcesso = fat["chaveAcesso"] == null ? string.Empty : fat["chaveAcesso"].ToString();
                     string dataEmissao = fat["dataEmissao"] == null ? string.Empty : fat["dataEmissao"].ToString();
@@ -844,7 +871,7 @@ namespace IntegradorFikon.Models.Fikon
                         }
                     }
 
-                    string serie = ObterSerie(TipoDocumento);
+                    string serie = ObterSerie(TipoDocumento, chaveAcesso);
 
                     faturamentos.Add(new FaturamentoIntegracaoPedido()
                     {
@@ -859,28 +886,63 @@ namespace IntegradorFikon.Models.Fikon
             return faturamentos;
         }
 
-        private static string ObterSerie(string tipoDocumento)
+        // Nota ativa = statusNotaCodigo 2 ("Autorizada/Ativa"). Se a FIKON não mandar o código,
+        // cai para o nome do status; sem nenhum dos dois, considera ativa (payload antigo).
+        private static bool NotaEstaAtiva(JToken fat)
         {
-            //string chave = (chaveAcesso ?? string.Empty).Trim();
-            //string somenteDigitos = new string(chave.Where(char.IsDigit).ToArray());
+            if (fat == null)
+            {
+                return false;
+            }
 
-            //if (somenteDigitos.Length >= 25)
-            //{
-            //    return somenteDigitos.Substring(22, 3);
-            //}
+            JToken codigo = fat["statusNotaCodigo"];
+            if (codigo != null && codigo.Type != JTokenType.Null)
+            {
+                int valor;
+                if (int.TryParse(codigo.ToString(), out valor))
+                {
+                    return valor == 2;
+                }
+            }
 
-            //return "001";
+            string nome = fat["statusNotaNome"]?.ToString() ?? string.Empty;
+            if (nome.IndexOf("Cancel", StringComparison.OrdinalIgnoreCase) >= 0
+                || nome.IndexOf("Inutiliz", StringComparison.OrdinalIgnoreCase) >= 0
+                || nome.IndexOf("Deneg", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return false;
+            }
+
+            JToken dataCancelamento = fat["dataCancelamento"];
+            return dataCancelamento == null
+                || dataCancelamento.Type == JTokenType.Null
+                || string.IsNullOrWhiteSpace(dataCancelamento.ToString());
+        }
+
+        // Série no padrão do Gemco: "1" para NF-e (modelo 55) e "U01" para NFC-e (modelo 65).
+        // O modelo sai da chave de acesso (posições 21-22); sem chave, do tipo do documento.
+        private static string ObterSerie(string tipoDocumento, string chaveAcesso)
+        {
+            string chave = new string((chaveAcesso ?? string.Empty).Where(char.IsDigit).ToArray());
+
+            if (chave.Length == 44)
+            {
+                string modelo = chave.Substring(20, 2);
+
+                if (modelo == "55")
+                {
+                    return "1";
+                }
+
+                if (modelo == "65")
+                {
+                    return "U01";
+                }
+            }
 
             string tipo = (tipoDocumento ?? string.Empty).Trim();
 
-            if (tipo.Equals("Nota Fiscal Eletrônica"))
-            {
-                return "1";
-            } else
-            {
-                return "U01";
-            }
-
+            return tipo.IndexOf("Consumidor", StringComparison.OrdinalIgnoreCase) >= 0 ? "U01" : "1";
         }
 
         private void ExecutarIntegracaoMovSaida(long numpedven, long numnota, string serie, string chave, DateTime hrhora)
@@ -898,6 +960,39 @@ namespace IntegradorFikon.Models.Fikon
                     command.Parameters.AddWithValue("@chave", string.IsNullOrWhiteSpace(chave) ? string.Empty : chave.Trim());
                     command.Parameters.AddWithValue("@hrhora", hrhora);
                     command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        private SituacaoNotaGemco ConsultarNotaNoGemco(long numpedven, long numnota, string serie)
+        {
+            using (SqlConnection connection = new SqlConnection(this.ConnectionString))
+            {
+                connection.Open();
+
+                using (SqlCommand command = new SqlCommand())
+                {
+                    command.Connection = connection;
+                    command.CommandText = @"
+                        SELECT SUM(CASE WHEN [STATUS] <> 9 THEN 1 ELSE 0 END) AS ATIVAS,
+                               COUNT(*) AS TOTAL
+                          FROM [MOV_SAIDA]
+                         WHERE [NUMPEDVEN] = @NUMPEDVEN
+                           AND [NUMNOTA]   = @NUMNOTA
+                           AND [SERIE]     = @SERIE";
+                    command.Parameters.Add("@NUMPEDVEN", SqlDbType.Decimal).Value = numpedven;
+                    command.Parameters.Add("@NUMNOTA", SqlDbType.Decimal).Value = numnota;
+                    command.Parameters.Add("@SERIE", SqlDbType.VarChar, 3).Value = (serie ?? string.Empty).Trim();
+
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (!reader.Read() || Convert.ToInt32(reader["TOTAL"]) == 0)
+                        {
+                            return SituacaoNotaGemco.NaoExiste;
+                        }
+
+                        return Convert.ToInt32(reader["ATIVAS"]) > 0 ? SituacaoNotaGemco.Ativa : SituacaoNotaGemco.Cancelada;
+                    }
                 }
             }
         }
@@ -1115,6 +1210,13 @@ namespace IntegradorFikon.Models.Fikon
     {
         public int Codcon { get; set; }
         public string Tipo { get; set; }
+    }
+
+    enum SituacaoNotaGemco
+    {
+        NaoExiste,
+        Ativa,
+        Cancelada
     }
 
     class FaturamentoIntegracaoPedido
