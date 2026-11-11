@@ -50,3 +50,4 @@ C:\Users\luan.costa\Desktop\franquias\IntegradorFikon\IntegradorFikon\obj\Debug\
 C:\Users\luan.costa\Desktop\franquias\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.pdb
 C:\Users\luan.costa\Desktop\franquias\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.csproj.AssemblyReference.cache
 C:\Users\luan.costa\Desktop\franquias\IntegradorFikon\IntegradorFikon\obj\Debug\Integrad.EE05F76F.Up2Date
+C:\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.csprojAssemblyReference.cache

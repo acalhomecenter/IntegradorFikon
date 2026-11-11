@@ -699,7 +699,7 @@ namespace IntegradorFikon.Models.Fikon
                 {
                     // O pedido volta para a fila após cancelamento ou faturamento parcial:
                     // nota que já está no Gemco não é inserida de novo.
-                    SituacaoNotaGemco situacao = ConsultarNotaNoGemco(pedido.PedidoGemco, faturamento.NumeroNota, faturamento.Serie);
+                    SituacaoNotaGemco situacao = ConsultarNotaNoGemco(pedido.PedidoGemco, faturamento.NumeroNota, faturamento.Serie, faturamento.ChaveAcesso);
 
                     if (situacao == SituacaoNotaGemco.Ativa)
                     {
@@ -871,7 +871,9 @@ namespace IntegradorFikon.Models.Fikon
                         }
                     }
 
-                    string serie = ObterSerie(TipoDocumento, chaveAcesso);
+                    // Série gravada como veio da FIKON (ex.: "444" na NFC-e, "1" na NF-e).
+                    // Sem série no payload, deduz pelo modelo da chave / tipo do documento.
+                    string serie = ObterSerie(fat["serie"]?.ToString(), TipoDocumento, chaveAcesso);
 
                     faturamentos.Add(new FaturamentoIntegracaoPedido()
                     {
@@ -919,27 +921,35 @@ namespace IntegradorFikon.Models.Fikon
                 || string.IsNullOrWhiteSpace(dataCancelamento.ToString());
         }
 
-        // Série no padrão do Gemco: "1" para NF-e (modelo 55) e "U01" para NFC-e (modelo 65).
-        // O modelo sai da chave de acesso (posições 21-22); sem chave, do tipo do documento.
-        private static string ObterSerie(string tipoDocumento, string chaveAcesso)
+        // Série da nota: a que veio no payload da FIKON (campo "serie"). Sem ela, a série que está
+        // na chave de acesso (posições 23-25). Série numérica vai sem zeros à esquerda ("001" -> "1"),
+        // no mesmo formato do payload; a SP_FIKON_INTEGRA_MOV_SAIDA trata serie = '1' como NF-e.
+        private static string ObterSerie(string seriePayload, string tipoDocumento, string chaveAcesso)
         {
-            string chave = new string((chaveAcesso ?? string.Empty).Where(char.IsDigit).ToArray());
+            string serie = (seriePayload ?? string.Empty).Trim();
 
-            if (chave.Length == 44)
+            if (serie.Length == 0)
             {
-                string modelo = chave.Substring(20, 2);
+                string chave = new string((chaveAcesso ?? string.Empty).Where(char.IsDigit).ToArray());
 
-                if (modelo == "55")
+                if (chave.Length == 44)
                 {
-                    return "1";
-                }
-
-                if (modelo == "65")
-                {
-                    return "U01";
+                    serie = chave.Substring(22, 3);
                 }
             }
 
+            if (serie.Length > 0 && serie.All(char.IsDigit))
+            {
+                serie = serie.TrimStart('0');
+                return serie.Length == 0 ? "0" : serie;
+            }
+
+            if (serie.Length > 0 && serie.Length <= 3)
+            {
+                return serie;
+            }
+
+            // Sem série no payload nem na chave: padrão antigo do Gemco.
             string tipo = (tipoDocumento ?? string.Empty).Trim();
 
             return tipo.IndexOf("Consumidor", StringComparison.OrdinalIgnoreCase) >= 0 ? "U01" : "1";
@@ -964,7 +974,7 @@ namespace IntegradorFikon.Models.Fikon
             }
         }
 
-        private SituacaoNotaGemco ConsultarNotaNoGemco(long numpedven, long numnota, string serie)
+        private SituacaoNotaGemco ConsultarNotaNoGemco(long numpedven, long numnota, string serie, string chave)
         {
             using (SqlConnection connection = new SqlConnection(this.ConnectionString))
             {
@@ -978,11 +988,13 @@ namespace IntegradorFikon.Models.Fikon
                                COUNT(*) AS TOTAL
                           FROM [MOV_SAIDA]
                          WHERE [NUMPEDVEN] = @NUMPEDVEN
-                           AND [NUMNOTA]   = @NUMNOTA
-                           AND [SERIE]     = @SERIE";
+                           AND (   ([NUMNOTA] = @NUMNOTA AND [SERIE] = @SERIE)
+                                -- mesma nota gravada antes com outra série (ex.: U01 x 444): reconhece pela chave
+                                OR (@CHAVE <> '' AND [CHAVENFE] = @CHAVE))";
                     command.Parameters.Add("@NUMPEDVEN", SqlDbType.Decimal).Value = numpedven;
                     command.Parameters.Add("@NUMNOTA", SqlDbType.Decimal).Value = numnota;
                     command.Parameters.Add("@SERIE", SqlDbType.VarChar, 3).Value = (serie ?? string.Empty).Trim();
+                    command.Parameters.Add("@CHAVE", SqlDbType.VarChar, 44).Value = (chave ?? string.Empty).Trim();
 
                     using (SqlDataReader reader = command.ExecuteReader())
                     {

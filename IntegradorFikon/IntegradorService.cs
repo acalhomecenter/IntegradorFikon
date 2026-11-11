@@ -157,13 +157,13 @@ namespace IntegradorFikon
 
 
 
-            repositorioFikon.insereFornecedorFikon(repositorioFornecedor.GetFornecedores());
+            //repositorioFikon.insereFornecedorFikon(repositorioFornecedor.GetFornecedores());
 
 
-            repositorioFikon.insereProdutoFikon(repositorio.GetItens());
+            //repositorioFikon.insereProdutoFikon(repositorio.GetItens());
 
 
-            repositorioFikon.insereClientesFikon(repositorioCliente.GetClientes());
+            //repositorioFikon.insereClientesFikon(repositorioCliente.GetClientes());
 
 
 
@@ -182,10 +182,10 @@ namespace IntegradorFikon
 
 
 
-            repositorioFikon.inserePrecoFikon(repositorioPreco.GetPrecosUpdate());
+            //repositorioFikon.inserePrecoFikon(repositorioPreco.GetPrecosUpdate());
 
 
-            repositorioFikon.atualizaProdutoFikon(repositorio.GetItensUpdate());
+            //repositorioFikon.atualizaProdutoFikon(repositorio.GetItensUpdate());
 
 
 
