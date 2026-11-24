@@ -22,11 +22,19 @@ namespace IntegradorFikon.Models.Fikon
         private string ConnectionStringAplicativos = "Data Source=sqlcs;User Id=app;Password=sqlbolim;Initial Catalog=dbAplicativos";
         private static string urlBase = new ApiFikon().UrlBase;
         private static string chaveApi = new ApiFikon().ChaveApi;
-        private HttpClient client;
         string jcontent = "";
         string jcontentAtualiza = "";
         string jcontentPreco = "";
         string jcontentForne = "";
+
+        // Status da fila (FIKON_INTEGRACAO_PEDIDO) para pedido que não precisa mais ser consultado na FIKON:
+        // já faturado ou cancelado direto no Gemco.
+        private const string STATUS_FATURADO_NO_GEMCO = "FATURADO NO GEMCO";
+        private const string STATUS_CANCELADO_NO_GEMCO = "CANCELADO NO GEMCO";
+
+        // Avisos que se repetiriam a cada ciclo (ex.: nota sem chave): registrados uma vez por execução do serviço.
+        private static readonly HashSet<string> avisosRegistrados = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private static readonly object avisosLock = new object();
 
 
 
@@ -76,7 +84,7 @@ namespace IntegradorFikon.Models.Fikon
 
         public async void insereProdutoFikonTodos(IEnumerable<Produto> prods)
         {
-            client = new HttpClient();
+            HttpClient client = new HttpClient(); // local: os timers de cadastro e de preço rodam em paralelo
 
             string url = urlBase + "/api-acal/api/v1/recurso/cadastrar";
 
@@ -133,7 +141,7 @@ namespace IntegradorFikon.Models.Fikon
 
         public async void insereClientesFikonTodos(List<Models.Cliente.Cliente> cliente)
         {
-            client = new HttpClient();
+            HttpClient client = new HttpClient(); // local: os timers de cadastro e de preço rodam em paralelo
 
             string url = urlBase + "/integracao-fikon/v1/cliente";
 
@@ -190,7 +198,7 @@ namespace IntegradorFikon.Models.Fikon
 
         public async Task insereClientesFikon(List<Models.Cliente.Cliente> cliente)
         {
-            client = new HttpClient();
+            HttpClient client = new HttpClient(); // local: os timers de cadastro e de preço rodam em paralelo
 
             string url = urlBase + "/api-acal/api/v1/cliente";
 
@@ -246,7 +254,9 @@ namespace IntegradorFikon.Models.Fikon
 
                 }catch(Exception ex)
                 {
-
+                    // Erro de rede, timeout ou resposta que não é JSON: o registro continua 'P' e volta no
+                    // próximo ciclo. Antes o erro era engolido sem log.
+                    RegistrarErroEnvio("CLIENTE", clientes[i].codigo, ex, jcontent);
                 }
 
             }
@@ -257,7 +267,7 @@ namespace IntegradorFikon.Models.Fikon
 
         public async Task insereProdutoFikon(IEnumerable<Produto> prods)
         {
-            client = new HttpClient();
+            HttpClient client = new HttpClient(); // local: os timers de cadastro e de preço rodam em paralelo
 
             string url = urlBase + "/api-acal/api/v1/recurso/cadastrar";
 
@@ -311,7 +321,7 @@ namespace IntegradorFikon.Models.Fikon
 
                 }catch(Exception ex)
                 {
-
+                    RegistrarErroEnvio("PRODUTO", Convert.ToString(produtos[i].codprod), ex, jcontent);
                 }
             }
         }
@@ -319,7 +329,7 @@ namespace IntegradorFikon.Models.Fikon
 
         public async Task atualizaProdutoFikon(IEnumerable<Produto> prods)
         {
-            client = new HttpClient();
+            HttpClient client = new HttpClient(); // local: os timers de cadastro e de preço rodam em paralelo
 
             string url = urlBase + "/api-acal/api/v1/recurso/editar";
 
@@ -371,7 +381,7 @@ namespace IntegradorFikon.Models.Fikon
 
                 }catch(Exception ex)
                 {
-
+                    RegistrarErroEnvio("PRODUTO UPDATE", Convert.ToString(produtos[i].codprod), ex, jcontentAtualiza);
                 }
 
 
@@ -381,7 +391,7 @@ namespace IntegradorFikon.Models.Fikon
 
         public async Task insereFornecedorFikon(IEnumerable<IntegradorFikon.Models.Fornecedor.Fornecedor> forne)
         {
-            client = new HttpClient();
+            HttpClient client = new HttpClient(); // local: os timers de cadastro e de preço rodam em paralelo
 
             string url = urlBase + "/api-acal/api/v1/fornecedor";
 
@@ -434,7 +444,7 @@ namespace IntegradorFikon.Models.Fikon
 
                 }catch(Exception ex)
                 {
-
+                    RegistrarErroEnvio("FORNECEDOR", fornecedores[i].codigo, ex, jcontentForne);
                 }
 
             }
@@ -442,7 +452,7 @@ namespace IntegradorFikon.Models.Fikon
 
         public async Task inserePrecoFikon(IEnumerable<IntegradorFikon.Models.Preco.Preco> preco)
         {
-            client = new HttpClient();
+            HttpClient client = new HttpClient(); // local: os timers de cadastro e de preço rodam em paralelo
 
             string url = urlBase + "/api-acal/api/v1/preco/cadastrar";
 
@@ -495,7 +505,7 @@ namespace IntegradorFikon.Models.Fikon
 
                 }catch(Exception ex)
                 {
-
+                    RegistrarErroEnvio("PRECO", precos[i].recursoChave, ex, jcontentPreco);
                 }
 
 
@@ -564,6 +574,24 @@ namespace IntegradorFikon.Models.Fikon
 
         private async Task ProcessarConsultaStatusPedidoAsync(HttpClient statusClient, PedidoIntegradoMonitoramento pedido)
         {
+            // Pedido cancelado, ou já faturado direto no Gemco, não passa mais no caixa da FIKON:
+            // sai da fila sem consultar a FIKON (antes ficava sendo consultado a cada ciclo).
+            SituacaoPedidoGemco pedidoGemco = ConsultarPedidoGemco(pedido.PedidoGemco);
+
+            if (!pedidoGemco.Existe)
+            {
+                AvisarUmaVez("STATUS_PEDIDO_FIKON", pedido.PedidoGemco, "Pedido Gemco " + pedido.PedidoGemco + " (FIKON " + pedido.PedidoFikon + ") não encontrado na MOV_PEDIDO.");
+                return;
+            }
+
+            string statusResolvido = StatusResolvidoNoGemco(pedidoGemco);
+
+            if (statusResolvido != null)
+            {
+                AtualizarStatusPedidoIntegrado(pedido.Id, statusResolvido);
+                return;
+            }
+
             string url = $"{urlBase}/api-acal/api/v1/pedidos/pesquisarVenda?idPedido={Uri.EscapeDataString(pedido.PedidoFikon)}";
 
             HttpResponseMessage response = await statusClient.GetAsync(url).ConfigureAwait(false);
@@ -635,12 +663,26 @@ namespace IntegradorFikon.Models.Fikon
                 }
             }
 
+            // Série da nota no Gemco (ex.: U05), se a FIKON já emitiu a nota: a proc escolhe o caixa/operador da
+            // FIKON_CAD_CAIXA por filial + série (script 33). Sem nota ainda, vai sem série (primeira linha da filial).
+            string serieNota = null;
+            JArray produtosStatus = json.SelectToken("dadosVenda.produtos") as JArray;
+            if (produtosStatus != null)
+            {
+                List<string> documentosSemChaveStatus;
+                serieNota = ExtrairFaturamentosIntegracao(produtosStatus, out documentosSemChaveStatus)
+                    .FirstOrDefault(f => TemChaveAcessoValida(f.ChaveAcesso))?.Serie;
+            }
+
+            // Filial do próprio pedido (antes era 502 fixo). Caixa/operador: FIKON_CAD_CAIXA da filial;
+            // o caixa "CARTOES" só quando a filial não está na FIKON_CAD_CAIXA.
             ExecutarAtualizacaoStatusPedidoGemco(
                 pedido.PedidoGemco,
-                502,
+                pedidoGemco.Codfil,
                 documento ?? string.Empty,
                 conveniada?.Codcon ?? 0,
-                conveniada?.Tipo ?? "DH");
+                conveniada?.Tipo ?? "DH",
+                serieNota);
 
             AtualizarStatusPedidoIntegrado(pedido.Id, "LIBERADO CXA");
         }
@@ -665,18 +707,37 @@ namespace IntegradorFikon.Models.Fikon
                 return;
             }
 
-            List<FaturamentoIntegracaoPedido> faturamentos = ExtrairFaturamentosIntegracao(produtos);
+            List<string> documentosSemChave;
+            List<FaturamentoIntegracaoPedido> faturamentos = ExtrairFaturamentosIntegracao(produtos, out documentosSemChave);
 
-            if (faturamentos == null || faturamentos.Count == 0)
+            // Documento ativo sem chave de acesso (não é NF-e/NFC-e): nunca vira nota no Gemco.
+            foreach (string documento in documentosSemChave)
             {
+                AvisarUmaVez("FATURAMENTO_PEDIDO_FIKON", pedido.PedidoGemco,
+                    "Documento " + documento + " do pedido FIKON " + pedido.PedidoFikon + " ignorado: está ativo, mas sem chave de acesso (não é NF-e/NFC-e).");
+            }
+
+            SituacaoPedidoGemco pedidoGemco = ConsultarPedidoGemco(pedido.PedidoGemco);
+
+            if (faturamentos.Count == 0)
+            {
+                // Sem nota fiscal ativa na FIKON: se o pedido já foi faturado ou cancelado direto no Gemco,
+                // sai da fila (antes ficava sendo consultado na FIKON a cada ciclo, sem fim).
+                string statusSemNota = StatusResolvidoNoGemco(pedidoGemco);
+
+                if (statusSemNota != null)
+                {
+                    AtualizarStatusPedidoIntegrado(pedido.Id, statusSemNota);
+                }
+
                 return;
             }
 
-            // Só conta como faturado o item que tem ao menos uma nota ativa (cancelada não vale).
+            // Só conta como faturado o item que tem ao menos uma nota fiscal ativa (cancelada ou sem chave não vale).
             bool todosItensFaturados = produtos.All(produto =>
             {
                 JArray fat = produto["faturamentos"] as JArray;
-                return fat != null && fat.Any(NotaEstaAtiva);
+                return fat != null && fat.Any(f => NotaEstaAtiva(f) && TemChaveAcessoValida(f["chaveAcesso"]?.ToString()));
             });
 
             string statusAtualizado = todosItensFaturados ? "FATURADO" : "FATURADO PARCIAL";
@@ -686,14 +747,12 @@ namespace IntegradorFikon.Models.Fikon
 
             foreach (FaturamentoIntegracaoPedido faturamento in faturamentos)
             {
-                string chaveDedup = string.IsNullOrWhiteSpace(faturamento.ChaveAcesso)
-                    ? faturamento.Serie + "-" + faturamento.NumeroNota.ToString(CultureInfo.InvariantCulture)
-                    : faturamento.ChaveAcesso;
-
-                if (!chavesProcessadas.Add(chaveDedup))
+                if (!chavesProcessadas.Add(faturamento.ChaveAcesso))
                 {
                     continue;
                 }
+
+                string descricaoNota = "Nota " + faturamento.NumeroNota + " série " + faturamento.Serie + " (chave " + faturamento.ChaveAcesso + ") do pedido FIKON " + pedido.PedidoFikon;
 
                 try
                 {
@@ -709,7 +768,35 @@ namespace IntegradorFikon.Models.Fikon
                     if (situacao == SituacaoNotaGemco.Cancelada)
                     {
                         houveErro = true;
-                        RegistrarErroConsultaStatus("FATURAMENTO_PEDIDO_FIKON", pedido.PedidoGemco, "Nota " + faturamento.NumeroNota + " série " + faturamento.Serie + " está ativa na FIKON mas cancelada no Gemco (pedido FIKON " + pedido.PedidoFikon + "). Verificar manualmente.");
+                        // Registra em toda tentativa: o pedido fica na fila e é tentado de novo a cada ciclo.
+                        RegistrarErroConsultaStatus("FATURAMENTO_PEDIDO_FIKON", pedido.PedidoGemco, descricaoNota + " está ativa na FIKON mas cancelada no Gemco. Verificar manualmente.");
+                        continue;
+                    }
+
+                    // Só grava a nota se o pedido tiver itens liberados para faturar (mesmo filtro da
+                    // SP_FIKON_INTEGRA_MOV_ITSAIDA). Sem isso a SP_FIKON_INTEGRA_MOV_SAIDA grava o cabeçalho
+                    // sem itens e com a data de hoje (ex.: notas 6 e 1567300 da filial 502 em 16/11/2026).
+                    SituacaoPedidoGemco antesDeGravar = ConsultarPedidoGemco(pedido.PedidoGemco);
+
+                    if (antesDeGravar.ItensFaturaveis == 0)
+                    {
+                        string mensagemSemItens = descricaoNota + " não foi gravada: o pedido Gemco " + pedido.PedidoGemco + " (status " + antesDeGravar.Status
+                            + ") não tem itens liberados para faturar nesta filial (STATUS 5, FLLIBFAT S, TPPED R/P, FILORIG = filial).";
+
+                        // Pedido ainda aberto sem item faturável: fica na fila, é tentado de novo a cada ciclo e o
+                        // erro é registrado em toda tentativa, até ser corrigido.
+                        // Pedido já faturado/cancelado no Gemco: a nota da FIKON sobrou e não há o que gravar
+                        // (aviso registrado uma vez só).
+                        if (StatusResolvidoNoGemco(antesDeGravar) == null)
+                        {
+                            houveErro = true;
+                            RegistrarErroConsultaStatus("FATURAMENTO_PEDIDO_FIKON", pedido.PedidoGemco, mensagemSemItens);
+                        }
+                        else
+                        {
+                            AvisarUmaVez("FATURAMENTO_PEDIDO_FIKON", pedido.PedidoGemco, mensagemSemItens);
+                        }
+
                         continue;
                     }
 
@@ -718,7 +805,7 @@ namespace IntegradorFikon.Models.Fikon
                 catch (Exception ex)
                 {
                     houveErro = true;
-                    RegistrarErroConsultaStatus("FATURAMENTO_PEDIDO_FIKON", pedido.PedidoGemco, "Erro ao executar SP_FIKON_INTEGRA_MOV_SAIDA para a nota " + faturamento.NumeroNota + " do pedido FIKON " + pedido.PedidoFikon + ": " + ex.Message);
+                    RegistrarErroConsultaStatus("FATURAMENTO_PEDIDO_FIKON", pedido.PedidoGemco, "Erro ao executar SP_FIKON_INTEGRA_MOV_SAIDA para a " + descricaoNota + ": " + ex.Message);
                 }
             }
 
@@ -726,8 +813,107 @@ namespace IntegradorFikon.Models.Fikon
             // são tentadas de novo no próximo ciclo (as já gravadas são puladas).
             if (!houveErro)
             {
+                // Faturado em parte na FIKON, mas já resolvido no Gemco (faturado/cancelado sem item pendente):
+                // sai da fila em vez de ficar como FATURADO PARCIAL consultado para sempre.
+                if (statusAtualizado == "FATURADO PARCIAL")
+                {
+                    statusAtualizado = StatusResolvidoNoGemco(ConsultarPedidoGemco(pedido.PedidoGemco)) ?? statusAtualizado;
+                }
+
                 AtualizarStatusPedidoIntegrado(pedido.Id, statusAtualizado);
             }
+        }
+
+        // Pedido que não precisa mais de nada da FIKON: cancelado no Gemco, ou faturado (STATUS 6) sem item
+        // pendente para faturar. Retorna o status da fila; null se o pedido ainda está em aberto.
+        private static string StatusResolvidoNoGemco(SituacaoPedidoGemco pedidoGemco)
+        {
+            if (pedidoGemco == null || !pedidoGemco.Existe)
+            {
+                return null;
+            }
+
+            if (pedidoGemco.Status == 9)
+            {
+                return STATUS_CANCELADO_NO_GEMCO;
+            }
+
+            if (pedidoGemco.Status == 6 && pedidoGemco.ItensFaturaveis == 0)
+            {
+                return STATUS_FATURADO_NO_GEMCO;
+            }
+
+            return null;
+        }
+
+        private static bool TemChaveAcessoValida(string chaveAcesso)
+        {
+            string chave = (chaveAcesso ?? string.Empty).Trim();
+            return chave.Length == 44 && chave.All(char.IsDigit);
+        }
+
+        // Situação do pedido no Gemco: filial, status e itens liberados para faturar com o mesmo filtro do
+        // cursor da SP_FIKON_INTEGRA_MOV_ITSAIDA (STATUS 5, FLLIBFAT 'S', TPPED 'R' ou 'P', FILORIG = filial).
+        // TPPED 'P' = pedido normal da loja, faturado em NF-e (ex.: DM, filial 15); exige o script 32 na base.
+        private SituacaoPedidoGemco ConsultarPedidoGemco(long numpedven)
+        {
+            using (SqlConnection connection = new SqlConnection(this.ConnectionString))
+            {
+                connection.Open();
+
+                using (SqlCommand command = new SqlCommand())
+                {
+                    command.Connection = connection;
+                    command.CommandText = @"
+                        SELECT TOP 1 p.[CODFIL], p.[STATUS],
+                               (SELECT COUNT(*)
+                                  FROM [MOV_ITPED] i WITH (NOLOCK)
+                                 WHERE i.[CODFIL] = p.[CODFIL]
+                                   AND i.[TIPOPED] = 0
+                                   AND i.[NUMPEDVEN] = p.[NUMPEDVEN]
+                                   AND i.[STATUS] = 5
+                                   AND i.[FLLIBFAT] = 'S'
+                                   AND i.[TPPED] IN ('R', 'P')
+                                   AND i.[FILORIG] = p.[CODFIL]) AS [ITENS_FATURAVEIS]
+                          FROM [MOV_PEDIDO] p WITH (NOLOCK)
+                         WHERE p.[TIPOPED] = 0
+                           AND p.[NUMPEDVEN] = @NUMPEDVEN
+                         ORDER BY p.[DTPEDIDO] DESC";
+                    command.Parameters.Add("@NUMPEDVEN", SqlDbType.Decimal).Value = numpedven;
+
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (!reader.Read())
+                        {
+                            return new SituacaoPedidoGemco();
+                        }
+
+                        return new SituacaoPedidoGemco()
+                        {
+                            Existe = true,
+                            Codfil = Convert.ToInt32(reader["CODFIL"]),
+                            Status = reader["STATUS"] == DBNull.Value ? -1 : Convert.ToInt32(reader["STATUS"]),
+                            ItensFaturaveis = Convert.ToInt32(reader["ITENS_FATURAVEIS"])
+                        };
+                    }
+                }
+            }
+        }
+
+        // Registra o aviso no log só na primeira vez em que ele acontece nesta execução do serviço.
+        private void AvisarUmaVez(string modulo, long pedidoGemco, string mensagem)
+        {
+            string chave = modulo + "|" + pedidoGemco.ToString(CultureInfo.InvariantCulture) + "|" + mensagem;
+
+            lock (avisosLock)
+            {
+                if (!avisosRegistrados.Add(chave))
+                {
+                    return;
+                }
+            }
+
+            RegistrarErroConsultaStatus(modulo, pedidoGemco, mensagem);
         }
 
         private List<PedidoIntegradoMonitoramento> ConsultarPedidosPendentesLiberacaoCaixa()
@@ -748,7 +934,7 @@ namespace IntegradorFikon.Models.Fikon
                         command.CommandText = @"
                         SELECT [id], [pedido_gemco], [pedido_fikon], [STATUS]
                          FROM [dbgemco].[dbo].[FIKON_INTEGRACAO_PEDIDO] WITH (NOLOCK)
-                         WHERE ISNULL([STATUS], '') not in ('LIBERADO CXA','FATURADO','FATURADO PARCIAL')
+                         WHERE ISNULL([STATUS], '') not in ('LIBERADO CXA','FATURADO','FATURADO PARCIAL','FATURADO NO GEMCO','CANCELADO NO GEMCO')
                          AND ISNULL([pedido_fikon], '') <> ''";
 
                         SqlDataReader reader = command.ExecuteReader();
@@ -770,7 +956,8 @@ namespace IntegradorFikon.Models.Fikon
                 }
                 catch (Exception ex)
                 {
-
+                    // Antes o erro era engolido e a liberação de caixa parava sem aviso.
+                    RegistrarErroConsultaStatus("STATUS_PEDIDO_FIKON", 0, "Erro ao consultar a fila de pedidos para liberação de caixa: " + ex.Message);
                 }
             }
 
@@ -794,7 +981,8 @@ namespace IntegradorFikon.Models.Fikon
                         SELECT [id], [pedido_gemco], [pedido_fikon], [STATUS]
                          FROM [dbgemco].[dbo].[FIKON_INTEGRACAO_PEDIDO] WITH (NOLOCK)
                         WHERE UPPER(LTRIM(RTRIM(ISNULL([STATUS], '')))) IN ('LIBERADO CXA', 'FATURADO PARCIAL')
-                          AND ISNULL([pedido_fikon], '') <> ''";
+                          AND ISNULL([pedido_fikon], '') <> ''
+                        ORDER BY [pedido_gemco] DESC";
 
                         SqlDataReader reader = command.ExecuteReader();
 
@@ -812,17 +1000,22 @@ namespace IntegradorFikon.Models.Fikon
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // Antes o erro era engolido e o faturamento parava sem aviso.
+                    RegistrarErroConsultaStatus("FATURAMENTO_PEDIDO_FIKON", 0, "Erro ao consultar a fila de pedidos para faturamento: " + ex.Message);
                 }
             }
 
             return pedidos;
         }
 
-        private static List<FaturamentoIntegracaoPedido> ExtrairFaturamentosIntegracao(JArray produtos)
+        // Notas fiscais ativas da venda na FIKON. Documento ativo sem chave de acesso de 44 dígitos não é
+        // NF-e/NFC-e (ex.: o "1567300" de 16/11/2026): fica fora e volta em documentosSemChave para o log.
+        private static List<FaturamentoIntegracaoPedido> ExtrairFaturamentosIntegracao(JArray produtos, out List<string> documentosSemChave)
         {
             List<FaturamentoIntegracaoPedido> faturamentos = new List<FaturamentoIntegracaoPedido>();
+            documentosSemChave = new List<string>();
 
             foreach (JToken produto in produtos)
             {
@@ -857,6 +1050,17 @@ namespace IntegradorFikon.Models.Fikon
                         continue;
                     }
 
+                    if (!TemChaveAcessoValida(chaveAcesso))
+                    {
+                        string documento = (numero ?? string.Empty).Trim() + (TipoDocumento.Length > 0 ? " (" + TipoDocumento + ")" : string.Empty);
+                        if (!documentosSemChave.Contains(documento))
+                        {
+                            documentosSemChave.Add(documento);
+                        }
+
+                        continue;
+                    }
+
                     DateTime dataHora;
                     if (!DateTime.TryParseExact(
                         (dataEmissao ?? string.Empty).Trim() + " " + (horaEmissao ?? string.Empty).Trim(),
@@ -871,8 +1075,8 @@ namespace IntegradorFikon.Models.Fikon
                         }
                     }
 
-                    // Série gravada como veio da FIKON (ex.: "444" na NFC-e, "1" na NF-e).
-                    // Sem série no payload, deduz pelo modelo da chave / tipo do documento.
+                    // Série da FIKON: NF-e como veio ("1"); NFC-e no padrão do Gemco ("1" -> "U01").
+                    // Sem série no payload, deduz pela chave / tipo do documento.
                     string serie = ObterSerie(fat["serie"]?.ToString(), TipoDocumento, chaveAcesso);
 
                     faturamentos.Add(new FaturamentoIntegracaoPedido()
@@ -922,26 +1126,28 @@ namespace IntegradorFikon.Models.Fikon
         }
 
         // Série da nota: a que veio no payload da FIKON (campo "serie"). Sem ela, a série que está
-        // na chave de acesso (posições 23-25). Série numérica vai sem zeros à esquerda ("001" -> "1"),
-        // no mesmo formato do payload; a SP_FIKON_INTEGRA_MOV_SAIDA trata serie = '1' como NF-e.
+        // na chave de acesso (posições 23-25). Série numérica vai sem zeros à esquerda ("001" -> "1").
+        // NFC-e (cupom): grava no padrão do PDV do Gemco, "U" + série com 2 dígitos ("1" -> "U01").
+        // As procs do Gemco tratam serie = '1' como NF-e (modelo 55); com "U01" a NFC-e fica modelo 65.
         private static string ObterSerie(string seriePayload, string tipoDocumento, string chaveAcesso)
         {
             string serie = (seriePayload ?? string.Empty).Trim();
+            string chave = new string((chaveAcesso ?? string.Empty).Where(char.IsDigit).ToArray());
 
-            if (serie.Length == 0)
+            if (serie.Length == 0 && chave.Length == 44)
             {
-                string chave = new string((chaveAcesso ?? string.Empty).Where(char.IsDigit).ToArray());
-
-                if (chave.Length == 44)
-                {
-                    serie = chave.Substring(22, 3);
-                }
+                serie = chave.Substring(22, 3);
             }
 
             if (serie.Length > 0 && serie.All(char.IsDigit))
             {
                 serie = serie.TrimStart('0');
-                return serie.Length == 0 ? "0" : serie;
+                if (serie.Length == 0)
+                {
+                    serie = "0";
+                }
+
+                return EhNotaConsumidor(tipoDocumento, chave) ? SerieCupomGemco(serie) : serie;
             }
 
             if (serie.Length > 0 && serie.Length <= 3)
@@ -953,6 +1159,28 @@ namespace IntegradorFikon.Models.Fikon
             string tipo = (tipoDocumento ?? string.Empty).Trim();
 
             return tipo.IndexOf("Consumidor", StringComparison.OrdinalIgnoreCase) >= 0 ? "U01" : "1";
+        }
+
+        // NFC-e: tipo do documento "Nota Fiscal de Consumidor Eletrônica" ou modelo 65 na chave
+        // de acesso (posições 21-22).
+        private static bool EhNotaConsumidor(string tipoDocumento, string chaveSomenteDigitos)
+        {
+            if ((tipoDocumento ?? string.Empty).IndexOf("Consumidor", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            return chaveSomenteDigitos != null
+                && chaveSomenteDigitos.Length == 44
+                && chaveSomenteDigitos.Substring(20, 2) == "65";
+        }
+
+        // Série do cupom no padrão do Gemco: "U" + série numérica com 2 dígitos ("1" -> "U01",
+        // "12" -> "U12"). O campo SERIE tem 3 caracteres: série com 3 dígitos (ex.: "444") não cabe
+        // no padrão e é gravada como veio.
+        private static string SerieCupomGemco(string serieNumerica)
+        {
+            return serieNumerica.Length <= 2 ? "U" + serieNumerica.PadLeft(2, '0') : serieNumerica;
         }
 
         private void ExecutarIntegracaoMovSaida(long numpedven, long numnota, string serie, string chave, DateTime hrhora)
@@ -1040,7 +1268,7 @@ namespace IntegradorFikon.Models.Fikon
             return null;
         }
 
-        private void ExecutarAtualizacaoStatusPedidoGemco(long numpedven, int codfil, string documento, int bandeira, string tipo)
+        private void ExecutarAtualizacaoStatusPedidoGemco(long numpedven, int codfil, string documento, int bandeira, string tipo, string serie = null)
         {
             using (SqlConnection connection = new SqlConnection(this.ConnectionString))
             {
@@ -1054,6 +1282,13 @@ namespace IntegradorFikon.Models.Fikon
                     command.Parameters.AddWithValue("@documento", string.IsNullOrWhiteSpace(documento) ? string.Empty : documento.Trim());
                     command.Parameters.AddWithValue("@bandeira", bandeira);
                     command.Parameters.AddWithValue("@tipo", string.IsNullOrWhiteSpace(tipo) ? string.Empty : tipo.Trim());
+
+                    // @serie existe só a partir do script 33; sem série o parâmetro nem é enviado (usa o padrão NULL).
+                    if (!string.IsNullOrWhiteSpace(serie))
+                    {
+                        command.Parameters.AddWithValue("@serie", serie.Trim());
+                    }
+
                     command.ExecuteNonQuery();
                 }
             }
@@ -1181,6 +1416,38 @@ namespace IntegradorFikon.Models.Fikon
             return string.Empty;
         }
 
+        // Erro inesperado no envio de um cadastro (cliente, produto, fornecedor, preço): rede, timeout,
+        // resposta que não é JSON etc. Grava em FIKON_LOG_INTEGRADOR e no log de eventos do Windows.
+        // O registro da fila continua 'P' e é reenviado no próximo ciclo.
+        private void RegistrarErroEnvio(string modulo, string codigo, Exception ex, string body)
+        {
+            string mensagem = ("Erro inesperado no envio: " + (ex == null ? string.Empty : ex.GetType().Name + ": " + ex.Message)).Replace("'", "");
+            if (mensagem.Length > 4000)
+                mensagem = mensagem.Substring(0, 4000);
+
+            try
+            {
+                executaQuery("INSERT INTO FIKON_LOG_INTEGRADOR(ERRO,MODULO,CODPROD,DTERRO,BODY) VALUES(" +
+                                     "'" + mensagem + "'," +
+                                     "'" + (modulo ?? string.Empty).Replace("'", "") + "'," +
+                                     "'" + (codigo ?? string.Empty).Replace("'", "") + "'," +
+                                     "getdate()," +
+                                     "'" + (body ?? string.Empty).Replace("'", "") + "'" +
+                                     ")", ConnectionString);
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                System.Diagnostics.EventLog.WriteEntry("IFikonSource", modulo + " " + codigo + " - " + mensagem, System.Diagnostics.EventLogEntryType.Error);
+            }
+            catch
+            {
+            }
+        }
+
         private void RegistrarErroConsultaStatus(string modulo, long pedidoGemco, string erro)
         {
             string mensagem = (erro ?? string.Empty).Replace("'", "");
@@ -1222,6 +1489,14 @@ namespace IntegradorFikon.Models.Fikon
     {
         public int Codcon { get; set; }
         public string Tipo { get; set; }
+    }
+
+    class SituacaoPedidoGemco
+    {
+        public bool Existe { get; set; }
+        public int Codfil { get; set; }
+        public int Status { get; set; } = -1;
+        public int ItensFaturaveis { get; set; }
     }
 
     enum SituacaoNotaGemco

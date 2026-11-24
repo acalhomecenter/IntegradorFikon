@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.ServiceProcess;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
@@ -25,6 +26,9 @@ namespace IntegradorFikon
         private System.Timers.Timer timerFaturamentoPedidos;
         private bool executandoConsultaStatusPedidos = false;
         private bool executandoConsultaFaturamentoPedidos = false;
+        // 1 = ciclo em andamento (Interlocked: os timers disparam em threads do pool).
+        private int executandoEnvioCadastros = 0;
+        private int executandoEnvioPrecos = 0;
         static readonly IProdutoRepositorio repositorio = new ProdutoRepositorio();
         static readonly IClienteRepositorio repositorioCliente = new ClienteRepositorio();
         static readonly IFornecedorRepositorio repositorioFornecedor = new FornecedorRepositorio();
@@ -155,18 +159,40 @@ namespace IntegradorFikon
 
 
 
+            // Um ciclo só começa quando o anterior terminou. Antes os envios não eram aguardados: com mais
+            // de 60 s de fila, o ciclo seguinte relia os mesmos registros 'P' e mandava o mesmo cliente
+            // em paralelo, e a FIKON gravava o cliente duas vezes.
+            if (Interlocked.CompareExchange(ref executandoEnvioCadastros, 1, 0) != 0)
+            {
+                return;
+            }
 
+            try
+            {
+                ExecutarEnvio("FORNECEDOR", () => repositorioFikon.insereFornecedorFikon(repositorioFornecedor.GetFornecedores()));
 
-            //repositorioFikon.insereFornecedorFikon(repositorioFornecedor.GetFornecedores());
+                ExecutarEnvio("PRODUTO", () => repositorioFikon.insereProdutoFikon(repositorio.GetItens()));
 
+                ExecutarEnvio("CLIENTE", () => repositorioFikon.insereClientesFikon(repositorioCliente.GetClientes()));
+            }
+            finally
+            {
+                Interlocked.Exchange(ref executandoEnvioCadastros, 0);
+            }
+        }
 
-            //repositorioFikon.insereProdutoFikon(repositorio.GetItens());
-
-
-            //repositorioFikon.insereClientesFikon(repositorioCliente.GetClientes());
-
-
-
+        // Executa um envio aguardando o fim. Um erro em uma etapa vai para o log de eventos e não impede
+        // as etapas seguintes do mesmo ciclo.
+        private void ExecutarEnvio(string etapa, Func<Task> envio)
+        {
+            try
+            {
+                envio().GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                eventLog1.WriteEntry("Erro no envio de " + etapa + " para a FIKON: " + ex.Message, EventLogEntryType.Error);
+            }
         }
 
 
@@ -182,13 +208,22 @@ namespace IntegradorFikon
 
 
 
-            //repositorioFikon.inserePrecoFikon(repositorioPreco.GetPrecosUpdate());
+            // Mesma trava do OnTimer: não começa um ciclo de preço enquanto o anterior ainda está enviando.
+            if (Interlocked.CompareExchange(ref executandoEnvioPrecos, 1, 0) != 0)
+            {
+                return;
+            }
 
+            try
+            {
+                ExecutarEnvio("PRECO", () => repositorioFikon.inserePrecoFikon(repositorioPreco.GetPrecosUpdate()));
 
-            //repositorioFikon.atualizaProdutoFikon(repositorio.GetItensUpdate());
-
-
-
+                ExecutarEnvio("PRODUTO UPDATE", () => repositorioFikon.atualizaProdutoFikon(repositorio.GetItensUpdate()));
+            }
+            finally
+            {
+                Interlocked.Exchange(ref executandoEnvioPrecos, 0);
+            }
         }
 
         public void OnTimerStatusPedidos(object sender, System.Timers.ElapsedEventArgs args)
