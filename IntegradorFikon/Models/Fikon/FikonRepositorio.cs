@@ -676,11 +676,13 @@ namespace IntegradorFikon.Models.Fikon
 
             // Filial do próprio pedido (antes era 502 fixo). Caixa/operador: FIKON_CAD_CAIXA da filial;
             // o caixa "CARTOES" só quando a filial não está na FIKON_CAD_CAIXA.
+            // @bandeira da proc é o NOME da bandeira na CASH_CONVENIADAS (a proc busca CODCON e taxa por ele).
+            // Antes ia o CODCON (número), que nunca batia: todo cartão ficava com CODCON 1 e taxa 2,3.
             ExecutarAtualizacaoStatusPedidoGemco(
                 pedido.PedidoGemco,
                 pedidoGemco.Codfil,
                 documento ?? string.Empty,
-                conveniada?.Codcon ?? 0,
+                conveniada?.Bandeira ?? string.Empty,
                 conveniada?.Tipo ?? "DH",
                 serieNota);
 
@@ -695,6 +697,16 @@ namespace IntegradorFikon.Models.Fikon
 
             if (!response.IsSuccessStatusCode)
             {
+                // Pedido que a FIKON não devolve mais (ex.: 404 "não encontrado na base de dados") mas já foi
+                // cancelado ou faturado direto no Gemco: sai da fila em vez de gravar o mesmo erro a cada ciclo.
+                string statusResolvidoErro = StatusResolvidoNoGemco(ConsultarPedidoGemco(pedido.PedidoGemco));
+
+                if (statusResolvidoErro != null)
+                {
+                    AtualizarStatusPedidoIntegrado(pedido.Id, statusResolvidoErro);
+                    return;
+                }
+
                 RegistrarErroConsultaStatus("FATURAMENTO_PEDIDO_FIKON", pedido.PedidoGemco, "Consulta do pedido FIKON retornou status " + (int)response.StatusCode + ". Body: " + body);
                 return;
             }
@@ -1247,9 +1259,10 @@ namespace IntegradorFikon.Models.Fikon
                 {
                     command.Connection = connection;
                     command.CommandText = @"
-                        SELECT TOP 1 [CODCON], [TIPO]
+                        SELECT TOP 1 [CODCON], [TIPO], [BANDEIRA]
                           FROM [dbAplicativos].[dbo].[CASH_CONVENIADAS] WITH (NOLOCK)
-                         WHERE UPPER(LTRIM(RTRIM(ISNULL([BANDEIRA], '')))) = UPPER(LTRIM(RTRIM(@BANDEIRA)))";
+                         WHERE UPPER(LTRIM(RTRIM(ISNULL([BANDEIRA], '')))) = UPPER(LTRIM(RTRIM(@BANDEIRA)))
+                         ORDER BY CASE WHEN [TIPO] = 'C' THEN 0 ELSE 1 END, [ID]";   // só é chamada para cartão de crédito (ELO/CABAL têm C e D)
                     command.Parameters.AddWithValue("@BANDEIRA", bandeira ?? string.Empty);
 
                     SqlDataReader reader = command.ExecuteReader();
@@ -1259,7 +1272,8 @@ namespace IntegradorFikon.Models.Fikon
                         return new ConveniadaCash()
                         {
                             Codcon = reader["CODCON"] == DBNull.Value ? 0 : Convert.ToInt32(reader["CODCON"]),
-                            Tipo = reader["TIPO"] == DBNull.Value ? string.Empty : reader["TIPO"].ToString()
+                            Tipo = reader["TIPO"] == DBNull.Value ? string.Empty : reader["TIPO"].ToString(),
+                            Bandeira = reader["BANDEIRA"] == DBNull.Value ? string.Empty : reader["BANDEIRA"].ToString().Trim()
                         };
                     }
                 }
@@ -1268,7 +1282,7 @@ namespace IntegradorFikon.Models.Fikon
             return null;
         }
 
-        private void ExecutarAtualizacaoStatusPedidoGemco(long numpedven, int codfil, string documento, int bandeira, string tipo, string serie = null)
+        private void ExecutarAtualizacaoStatusPedidoGemco(long numpedven, int codfil, string documento, string bandeira, string tipo, string serie = null)
         {
             using (SqlConnection connection = new SqlConnection(this.ConnectionString))
             {
@@ -1280,7 +1294,7 @@ namespace IntegradorFikon.Models.Fikon
                     command.Parameters.AddWithValue("@NUMPEDVEN", numpedven);
                     command.Parameters.AddWithValue("@CODFIL", codfil);
                     command.Parameters.AddWithValue("@documento", string.IsNullOrWhiteSpace(documento) ? string.Empty : documento.Trim());
-                    command.Parameters.AddWithValue("@bandeira", bandeira);
+                    command.Parameters.AddWithValue("@bandeira", bandeira ?? string.Empty);
                     command.Parameters.AddWithValue("@tipo", string.IsNullOrWhiteSpace(tipo) ? string.Empty : tipo.Trim());
 
                     // @serie existe só a partir do script 33; sem série o parâmetro nem é enviado (usa o padrão NULL).
@@ -1489,6 +1503,7 @@ namespace IntegradorFikon.Models.Fikon
     {
         public int Codcon { get; set; }
         public string Tipo { get; set; }
+        public string Bandeira { get; set; }   // nome como está na CASH_CONVENIADAS (a proc procura por ele)
     }
 
     class SituacaoPedidoGemco

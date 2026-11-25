@@ -13,16 +13,16 @@ namespace IntegradorFikon.Conexao
 
         public ApiFikon()
         {
-            UrlBase = "https://dacal.fikon.com.br";
+            //UrlBase = "https://dacal.fikon.com.br";
             //UrlBase = "https://hacal.fikon.com.br";
             //UrlBase = "https://acal.fikon.com.br";
 
-            //UrlBase = "http://127.0.0.1:8065";
+            UrlBase = "http://127.0.0.1";
             //Produçao
-            //ChaveApi = "Bearer 01nwXhX8CgJwGhwHTNb7dlX8Jzs54pwD60FZqRGBWm5rSAEzGvoumP4vcc*k2v*NHu";
+            ChaveApi = "Bearer 01nwXhX8CgJwGhwHTNb7dlX8Jzs54pwD60FZqRGBWm5rSAEzGvoumP4vcc*k2v*NHu";
 
            // Desenvolvimento
-            ChaveApi = "Bearer 019i5zNyUUiR*BNbxwV_HhcSVrfOTZL0goKxlvNekeW3SP_XmoG*YuGV7XW21Evm3Y";
+            //ChaveApi = "Bearer 019i5zNyUUiR*BNbxwV_HhcSVrfOTZL0goKxlvNekeW3SP_XmoG*YuGV7XW21Evm3Y";
 
             ////Desenvolvimento2
             //ChaveApi = "Bearer 01G3nfdbOjWOLJrh1wzl5Z_R5ok7D9SQDEDn5dx7mfpdAUGvVpIfByqV1aRORtWcEG";
