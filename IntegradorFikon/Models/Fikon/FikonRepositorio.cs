@@ -265,6 +265,14 @@ namespace IntegradorFikon.Models.Fikon
 
 
 
+        // Retorno da Fikon para a coluna RETORNO da fila (varchar(200)): JSON sem indentação, sem aspas simples
+        // e cortado em 200 caracteres. Maior que isso, o UPDATE falhava e o produto ficava pendente para sempre.
+        private static string RetornoParaFila(JObject json)
+        {
+            string retorno = json.GetValue("dados").ToString(Formatting.None).Replace("'", "");
+            return retorno.Length > 200 ? retorno.Substring(0, 200) : retorno;
+        }
+
         public async Task insereProdutoFikon(IEnumerable<Produto> prods)
         {
             HttpClient client = new HttpClient(); // local: os timers de cadastro e de preço rodam em paralelo
@@ -296,7 +304,7 @@ namespace IntegradorFikon.Models.Fikon
                     string res = await response.Content.ReadAsStringAsync();
                     JObject json = JObject.Parse(res);
 
-                    executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='R', DTINTEGRACAO=getdate() , retorno = " + "'" + json.GetValue("dados").ToString().Replace("'", "") + "'" + "WHERE status='P' and tipo='I' and codprod=" + produtos[i].codprod, ConnectionString);
+                    executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='R', DTINTEGRACAO=getdate() , retorno = " + "'" + RetornoParaFila(json) + "'" + "WHERE status='P' and tipo='I' and codprod=" + produtos[i].codprod, ConnectionString);
 
 
                 }
@@ -358,7 +366,7 @@ namespace IntegradorFikon.Models.Fikon
                     string res = await response.Content.ReadAsStringAsync();
                     JObject json = JObject.Parse(res);
 
-                    executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='R', DTINTEGRACAO=getdate(), retorno = " + "'" + json.GetValue("dados").ToString().Replace("'", "") + "'" + " WHERE status='P' and tipo='A' and codprod=" + produtos[i].codprod, ConnectionString);
+                    executaQuery("UPDATE FIKON_CAD_PROD WITH (READCOMMITTED) SET STATUS='R', DTINTEGRACAO=getdate(), retorno = " + "'" + RetornoParaFila(json) + "'" + " WHERE status='P' and tipo='A' and codprod=" + produtos[i].codprod, ConnectionString);
 
 
                 }

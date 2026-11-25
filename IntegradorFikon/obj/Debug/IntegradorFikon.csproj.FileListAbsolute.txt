@@ -54,5 +54,5 @@ C:\Users\jefferson.paulo\AppData\Local\Temp\claude\integrador_build\IntegradorFi
 C:\Users\jefferson.paulo\AppData\Local\Temp\claude\integrador_build\IntegradorFikon.application
 C:\Users\jefferson.paulo\AppData\Local\Temp\claude\integrador_build\IntegradorFikon.exe
 C:\Users\jefferson.paulo\AppData\Local\Temp\claude\integrador_build\IntegradorFikon.pdb
-C:\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.csprojAssemblyReference.cache
 C:\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.csproj.CopyComplete
+C:\IntegradorFikon\IntegradorFikon\obj\Debug\IntegradorFikon.csproj.AssemblyReference.cache

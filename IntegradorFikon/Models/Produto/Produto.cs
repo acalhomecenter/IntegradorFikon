@@ -39,6 +39,11 @@ namespace IntegradorFikon.Models.Produtos
         public string tipo { get; set; }
         public object codigo { get; set; }
         public string fornecedor { get; set; }
+        // Só para o tipo "Código de Barras": embalagem do Gemco (0 = unidade), quantidade da embalagem
+        // (CAD_EMBAL.QTEMB) e data da última alteração do código, usada para saber qual é o atual.
+        public string embalagem { get; set; }
+        public string quantidade { get; set; }
+        public string alteracao { get; set; }
     }
 
     public class Fornecedor

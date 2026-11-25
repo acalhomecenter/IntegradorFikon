@@ -259,6 +259,14 @@ namespace IntegradorFikon.Models.Produtos
 
                         SqlDataReader reader = command.ExecuteReader();
 
+                        // Colunas novas da SP_FIKON_CONSULTA_CODIGOS (embalagem, quantidade e alteração do código de
+                        // barras). Lidas só se existirem, para o integrador continuar funcionando com a procedure antiga.
+                        var colunas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        for (int c = 0; c < reader.FieldCount; c++)
+                        {
+                            colunas.Add(reader.GetName(c));
+                        }
+
                         while (reader.Read())
                         {
 
@@ -267,7 +275,9 @@ namespace IntegradorFikon.Models.Produtos
                                 codigo = reader["codigo"] == DBNull.Value ? string.Empty : reader["codigo"].ToString(),
                                 tipo = reader["Classificacao"] == DBNull.Value ? string.Empty : reader["Classificacao"].ToString(),
                                 fornecedor = reader["fornecedor"] == DBNull.Value ? string.Empty : reader["fornecedor"].ToString(),
-
+                                embalagem = LerTexto(reader, colunas, "Embalagem"),
+                                quantidade = LerTexto(reader, colunas, "Quantidade"),
+                                alteracao = LerTexto(reader, colunas, "Alteracao"),
                             };
 
                             ListCodigo.Add(codigo);
@@ -293,6 +303,16 @@ namespace IntegradorFikon.Models.Produtos
         }
 
 
+
+        // Valor da coluna como texto, ou null se a coluna não existir no resultado ou estiver vazia.
+        private static string LerTexto(SqlDataReader reader, HashSet<string> colunas, string coluna)
+        {
+            if (!colunas.Contains(coluna) || reader[coluna] == DBNull.Value)
+            {
+                return null;
+            }
+            return reader[coluna].ToString();
+        }
 
         public List<Fornecedor> GetFornecedores(string recurso)
         {
